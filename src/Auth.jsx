@@ -133,7 +133,7 @@ export default function Auth({ onLoginSuccess }) {
           <div className="flex justify-center mt-2">
             <HCaptcha
               ref={captchaRef}
-              sitekey="10000000-ffff-ffff-ffff-000000000001" // Ganti dengan Sitekey hCaptcha kamu
+              sitekey="a0fe2c76-ff82-4066-824e-ce085a3221d0" // Ganti dengan Sitekey hCaptcha kamu
               onVerify={(token) => setCaptchaToken(token)}
               theme="dark"
             />
