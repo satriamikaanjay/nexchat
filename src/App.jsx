@@ -570,6 +570,11 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
   useEffect(() => { setIsHeaderMenuOpen(false); setIsContactInfoOpen(false); setReplyingTo(null); setEditingMsg(null); setActiveMsgId(null); setIsTyping(false); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100) }, [activeChat])
 
   useEffect(() => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, 50)
+  }, [globalMessages])
+  useEffect(() => {
     if (!activeChat) return;
     const roomName = activeChat.type === 'group' 
       ? `typing-room-${activeChat.id}` 
