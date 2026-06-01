@@ -24,7 +24,8 @@ const Icons = {
   Video: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>,
   Copy: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
   Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>,
-  Share: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+  Share: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>,
+  Edit: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
 }
 
 const Avatar = ({ url, name, size = 'w-10 h-10', className = '' }) => (
@@ -119,10 +120,18 @@ function MainApp({ session, myProfile, setMyProfile }) {
   const [contactIdInput, setContactIdInput] = useState('')
   const [groupNameInput, setGroupNameInput] = useState('')
 
+  // State untuk melacak pengguna tak dikenal & pengguna yang diblokir
+  const [unknownProfiles, setUnknownProfiles] = useState({})
+  const [blockedIds, setBlockedIds] = useState(() => {
+    const saved = localStorage.getItem('blocked_ids')
+    return saved ? JSON.parse(saved) : []
+  })
+
   const t = dict['id']
   const colors = getTheme(themeName)
 
   useEffect(() => { localStorage.setItem('app_theme', themeName) }, [themeName])
+  useEffect(() => { localStorage.setItem('blocked_ids', JSON.stringify(blockedIds)) }, [blockedIds])
 
   useEffect(() => {
     const fetchGlobalMessages = async () => {
@@ -140,6 +149,9 @@ function MainApp({ session, myProfile, setMyProfile }) {
     const channel = supabase.channel('global-chat-room')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new;
+        // Jangan notifikasi jika pengirim diblokir
+        if (blockedIds.includes(msg.sender_id)) return;
+        
         setGlobalMessages((prev) => [...prev, msg]); 
         
         if (msg.sender_id !== myProfile.chat_id) {
@@ -167,7 +179,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
       .subscribe(async (status) => { if (status === 'SUBSCRIBED') await channel.track({ user_id: myProfile.chat_id }) })
 
     return () => { supabase.removeChannel(channel) }
-  }, [myProfile.chat_id, groups])
+  }, [myProfile.chat_id, groups, blockedIds])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -193,6 +205,54 @@ function MainApp({ session, myProfile, setMyProfile }) {
     }
     initData()
   }, [session.user.id])
+
+  // ================= LOGIKA MENGAMBIL PROFIL UNTUK PENGGUNA TAK DIKENAL =================
+  const savedContactIds = contacts.map(c => c.contact_id);
+  const unknownContactIds = [...new Set(
+    globalMessages
+      .filter(m => m.receiver_id === myProfile.chat_id && m.sender_id !== myProfile.chat_id && !savedContactIds.includes(m.sender_id) && !blockedIds.includes(m.sender_id))
+      .map(m => m.sender_id)
+  )];
+
+  useEffect(() => {
+    const missingIds = unknownContactIds.filter(id => !unknownProfiles[id]);
+    if (missingIds.length === 0) return;
+
+    const fetchMissingProfiles = async () => {
+      const { data } = await supabase.from('profiles').select('chat_id, username, avatar_url').in('chat_id', missingIds);
+      if (data) {
+        setUnknownProfiles(prev => {
+          const updated = { ...prev };
+          data.forEach(p => { updated[p.chat_id] = p });
+          return updated;
+        });
+      }
+    };
+    fetchMissingProfiles();
+  }, [JSON.stringify(unknownContactIds)]) // Fetch otomatis setiap ada pesan dari ID baru
+
+  const unknownContacts = unknownContactIds.map(id => ({
+    id: `unknown-${id}`,
+    contact_id: id,
+    contact_username: unknownProfiles[id]?.username || id, // Fallback ke ID jika loading
+    avatar_url: unknownProfiles[id]?.avatar_url || null,
+    cleared_at: '1970-01-01',
+  }));
+  // ===============================================================================
+
+  const handleQuickSaveContact = async (contactId, username, avatarUrl) => {
+    const { data } = await supabase.from('contacts').insert([{ user_id: session.user.id, contact_id: contactId, contact_username: username, cleared_at: '1970-01-01' }]).select().single()
+    if (data) { 
+      setContacts([{ ...data, avatar_url: avatarUrl }, ...contacts]); 
+    }
+  }
+
+  const handleBlockContact = (contactId) => {
+    if (window.confirm("Yakin ingin memblokir? Semua pesan dari entitas ini akan disembunyikan.")) {
+      setBlockedIds(prev => [...prev, contactId])
+      if (activeChat?.contact_id === contactId) setActiveChat(null)
+    }
+  }
 
   const executeAddContact = async (e) => {
     e.preventDefault()
@@ -225,8 +285,8 @@ function MainApp({ session, myProfile, setMyProfile }) {
     }
   }
 
-  return (
-    <div className={`flex h-screen w-full font-sans overflow-hidden ${colors.base} ${colors.text}`}>
+ return (
+    <div className={`flex fixed inset-0 w-full font-sans overflow-hidden ${colors.base} ${colors.text}`}>
       
       {/* SIDEBAR DESKTOP & MOBILE NAVIGATION */}
       <div className={`flex flex-col h-full w-full md:w-[360px] lg:w-[400px] border-r ${colors.border} ${colors.panel} ${activeChat ? 'hidden md:flex' : 'flex'}`}>
@@ -297,8 +357,9 @@ function MainApp({ session, myProfile, setMyProfile }) {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto">
+                {/* 1. Render Grup */}
                 {groups.map(g => {
-                  const unreadCount = globalMessages.filter(m => m.group_id === g.id && m.sender_id !== myProfile.chat_id && !m.is_read).length;
+                  const unreadCount = globalMessages.filter(m => m.group_id === g.id && m.sender_id !== myProfile.chat_id && !m.is_read && !blockedIds.includes(m.sender_id)).length;
                   return (
                     <div key={g.id} onClick={() => setActiveChat({...g, type: 'group'})} className={`p-4 border-b ${colors.border} cursor-pointer hover:bg-black/5 flex items-center gap-3 ${activeChat?.id === g.id ? 'bg-black/5' : ''}`}>
                       <Avatar url={g.avatar_url} name={g.name} size="w-12 h-12" />
@@ -316,42 +377,74 @@ function MainApp({ session, myProfile, setMyProfile }) {
                     </div>
                   )
                 })}
-                {contacts.length === 0 && groups.length === 0 ? (
+                
+                {contacts.length === 0 && groups.length === 0 && unknownContacts.length === 0 ? (
                    <div className={`p-8 text-center text-sm ${colors.textMuted}`}>Belum ada percakapan.</div>
                 ) : (
-                  contacts.map(c => {
-                    const isOnline = onlineUsers.includes(c.contact_id);
-                    const clearedAtTime = new Date(c.cleared_at || '1970-01-01').getTime();
-                    const unreadCount = globalMessages.filter(m => {
-                      const isNotCleared = new Date(m.created_at).getTime() > clearedAtTime;
-                      return isNotCleared && m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read;
-                    }).length;
+                  <>
+                    {/* 2. Render Kontak Belum Tersimpan (DARI PESAN BARU MASUK) */}
+                    {unknownContacts.map(c => {
+                      const isOnline = onlineUsers.includes(c.contact_id);
+                      const unreadCount = globalMessages.filter(m => m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read).length;
 
-                    return (
-                      <div key={c.id} onClick={() => setActiveChat({...c, type: 'personal'})} className={`p-4 border-b ${colors.border} cursor-pointer hover:bg-black/5 flex items-center gap-3 transition group ${activeChat?.contact_id === c.contact_id ? 'bg-black/5' : ''}`}>
-                        <div className="relative">
-                          <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12" />
-                          {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#18181b] rounded-full"></span>}
+                      return (
+                        <div key={c.id} onClick={() => setActiveChat({...c, type: 'personal'})} className={`p-4 border-b ${colors.border} cursor-pointer hover:bg-indigo-500/5 flex items-center gap-3 transition group ${activeChat?.contact_id === c.contact_id ? 'bg-indigo-500/10' : ''}`}>
+                          <div className="relative">
+                            <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12" />
+                            {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#18181b] rounded-full"></span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className={`text-sm truncate ${unreadCount > 0 ? 'font-bold text-current' : 'font-medium'}`}>
+                              {c.contact_id} {c.contact_username && c.contact_username !== c.contact_id ? `(${c.contact_username})` : ''}
+                              {/* Label Baru hanya muncul selama pesan belum dibaca! Jika chat dibuka, unreadCount akan 0 dan label otomatis hilang */}
+                              {unreadCount > 0 && <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-500 px-1.5 py-0.5 rounded ml-2 uppercase">Baru</span>}
+                            </h3>
+                            {unreadCount > 0 ? (
+                              <p className="text-xs font-bold text-indigo-500 mt-0.5 truncate">Pesan baru belum dibaca</p>
+                            ) : (
+                              <p className={`text-xs truncate mt-0.5 ${colors.textMuted}`}>Belum ada di kontak</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`text-sm truncate ${unreadCount > 0 ? 'font-bold text-current' : 'font-medium'}`}>{c.contact_username}</h3>
-                          {unreadCount > 0 ? (
-                            <p className="text-xs font-bold text-indigo-500 mt-0.5 truncate">Pesan baru belum dibaca</p>
-                          ) : (
-                            <p className={`text-xs truncate mt-0.5 ${colors.textMuted}`}>ID: {c.contact_id}</p>
-                          )}
+                      )
+                    })}
+
+                    {/* 3. Render Kontak Tersimpan */}
+                    {contacts.map(c => {
+                      const isOnline = onlineUsers.includes(c.contact_id);
+                      const clearedAtTime = new Date(c.cleared_at || '1970-01-01').getTime();
+                      const unreadCount = globalMessages.filter(m => {
+                        const isNotCleared = new Date(m.created_at).getTime() > clearedAtTime;
+                        return isNotCleared && m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read;
+                      }).length;
+
+                      return (
+                        <div key={c.id} onClick={() => setActiveChat({...c, type: 'personal'})} className={`p-4 border-b ${colors.border} cursor-pointer hover:bg-black/5 flex items-center gap-3 transition group ${activeChat?.contact_id === c.contact_id ? 'bg-black/5' : ''}`}>
+                          <div className="relative">
+                            <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12" />
+                            {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#18181b] rounded-full"></span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {/* Kontak yang disimpan HANYA menampilkan Nama */}
+                            <h3 className={`text-sm truncate ${unreadCount > 0 ? 'font-bold text-current' : 'font-medium'}`}>{c.contact_username}</h3>
+                            {unreadCount > 0 ? (
+                              <p className="text-xs font-bold text-indigo-500 mt-0.5 truncate">Pesan baru belum dibaca</p>
+                            ) : (
+                              <p className={`text-xs truncate mt-0.5 ${colors.textMuted}`}>ID: {c.contact_id}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {unreadCount > 0 && (
+                              <div className="bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{unreadCount}</div>
+                            )}
+                            <button onClick={(e) => handleDeleteContact(e, c.contact_id)} className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all ${colors.textMuted}`} title="Hapus Kontak">
+                              <Icons.Trash />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {unreadCount > 0 && (
-                            <div className="bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{unreadCount}</div>
-                          )}
-                          <button onClick={(e) => handleDeleteContact(e, c.contact_id)} className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all ${colors.textMuted}`} title="Hapus Kontak">
-                            <Icons.Trash />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })
+                      )
+                    })}
+                  </>
                 )}
               </div>
               <div className="absolute bottom-6 right-4 flex flex-col gap-3">
@@ -377,6 +470,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
             activeChat={activeChat} setActiveChat={setActiveChat} 
             contacts={contacts} setContacts={setContacts} groups={groups} setGroups={setGroups} 
             globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} onlineUsers={onlineUsers}
+            onQuickSave={handleQuickSaveContact} onBlock={handleBlockContact} blockedIds={blockedIds}
           />
         )}
       </div>
@@ -455,7 +549,7 @@ function ProfileModule({ session, myProfile, setMyProfile, t, colors }) {
   )
 }
 
-function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, contacts, setContacts, groups, setGroups, globalMessages, setGlobalMessages, onlineUsers }) {
+function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, contacts, setContacts, groups, setGroups, globalMessages, setGlobalMessages, onlineUsers, onQuickSave, onBlock, blockedIds }) {
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   
@@ -464,17 +558,19 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
   
   const [replyingTo, setReplyingTo] = useState(null)
   const [activeMsgId, setActiveMsgId] = useState(null)
+  const [editingMsg, setEditingMsg] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
   
   const mediaInputRef = useRef(null); const channelRef = useRef(null); const messagesEndRef = useRef(null); const typingTimeoutRef = useRef(null)
 
-  useEffect(() => { setIsHeaderMenuOpen(false); setIsContactInfoOpen(false); setReplyingTo(null); setActiveMsgId(null); setIsTyping(false); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100) }, [activeChat])
+  // LOGIKA PENGGUNA BELUM DIKENAL
+  const isSavedContact = activeChat.type === 'personal' && contacts.some(c => c.contact_id === activeChat.contact_id);
+  const isUnknownContact = activeChat.type === 'personal' && !isSavedContact;
 
-  // ================= PERBAIKAN: SALURAN KHUSUS UNTUK STATUS MENGETIK =================
+  useEffect(() => { setIsHeaderMenuOpen(false); setIsContactInfoOpen(false); setReplyingTo(null); setEditingMsg(null); setActiveMsgId(null); setIsTyping(false); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100) }, [activeChat])
+
   useEffect(() => {
     if (!activeChat) return;
-    
-    // Membuat nama saluran yang dijamin unik namun sama untuk kedua belah pihak
     const roomName = activeChat.type === 'group' 
       ? `typing-room-${activeChat.id}` 
       : `typing-room-${[myProfile.chat_id, activeChat.contact_id].sort().join('-')}`;
@@ -488,7 +584,8 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
     return () => { supabase.removeChannel(channel) }
   }, [activeChat, myProfile.chat_id])
 
-  // OPTIMISTIC UI UPDATE: Pesan otomatis dibaca tanpa harus refresh!
+  // OPTIMISTIC UI UPDATE: Pesan otomatis dibaca. 
+  // Karena pesan dibaca, label 'Baru' akan langsung menghilang secara real-time!
   useEffect(() => {
     if (!activeChat || activeChat.type === 'group') return
     const unreadMsgs = globalMessages.filter(m => m.sender_id === activeChat.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read)
@@ -523,8 +620,19 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
     }
   }
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault(); if (!inputMessage.trim()) return
+ const handleSendMessage = async (e) => {
+    e.preventDefault(); 
+    if (!inputMessage.trim()) return;
+
+    // JIKA SEDANG MODE EDIT
+    if (editingMsg) {
+      await supabase.from('messages').update({ content: inputMessage }).eq('id', editingMsg.id);
+      setEditingMsg(null);
+      setInputMessage('');
+      return;
+    }
+
+    // JIKA MENGIRIM PESAN BARU (KODE LAMA)
     const payload = { sender_id: myProfile.chat_id, content: inputMessage, is_read: false, reply_to_id: replyingTo?.id || null }
     if (activeChat.type === 'group') payload.group_id = activeChat.id; else payload.receiver_id = activeChat.contact_id
     await supabase.from('messages').insert([payload]); setInputMessage(''); setReplyingTo(null)
@@ -549,6 +657,7 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
 
   const clearedAtTime = new Date(activeChat.cleared_at || '1970-01-01').getTime();
   const filteredMessages = globalMessages.filter(msg => {
+    if (blockedIds.includes(msg.sender_id)) return false; // Jangan tampilkan jika diblokir
     const msgTime = new Date(msg.created_at).getTime();
     if (msgTime <= clearedAtTime) return false;
     if (activeChat?.type === 'group') return msg.group_id === activeChat.id
@@ -607,89 +716,144 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
       </div>
 
       {/* Area Chat */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3" onClick={() => { setIsHeaderMenuOpen(false); setActiveMsgId(null); }}>
-        <div className="flex justify-center mb-6">
-          <div className={`text-[10px] font-medium px-4 py-1.5 rounded-full border ${colors.border} ${colors.textMuted} flex items-center gap-1.5`}>
-            <Icons.Lock /> <span>Enkripsi Ujung-ke-Ujung Aktif</span>
+      <div className="flex-1 overflow-y-auto space-y-3 relative" onClick={() => { setIsHeaderMenuOpen(false); setActiveMsgId(null); }}>
+        
+        {/* BANNER: Simpan atau Blokir Kontak jika belum dikenal */}
+        {isUnknownContact && (
+           <div className={`sticky top-0 z-10 mx-4 mt-4 p-3 rounded-xl border ${colors.border} bg-indigo-500/10 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm`}>
+             <p className={`text-xs font-medium`}>Nomor ini tidak ada di daftar kontak Anda.</p>
+             <div className="flex gap-2 w-full sm:w-auto">
+                <button onClick={() => onQuickSave(activeChat.contact_id, activeChat.contact_username, activeChat.avatar_url)} className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 transition shadow-sm">Simpan Kontak</button>
+                <button onClick={() => onBlock(activeChat.contact_id)} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-red-500/50 text-red-500 bg-red-500/5 text-xs font-bold hover:bg-red-500/20 transition">Blokir</button>
+             </div>
+           </div>
+        )}
+
+        <div className={`p-4 space-y-3 ${isUnknownContact ? 'pt-0' : ''}`}>
+          <div className="flex justify-center mb-6">
+            <div className={`text-[10px] font-medium px-4 py-1.5 rounded-full border ${colors.border} ${colors.textMuted} flex items-center gap-1.5`}>
+              <Icons.Lock /> <span>Enkripsi Ujung-ke-Ujung Aktif</span>
+            </div>
           </div>
-        </div>
 
-        {filteredMessages.map((msg, idx) => {
-          const isMe = msg.sender_id === myProfile.chat_id
-          const dateLabel = formatDateBadge(msg.created_at)
-          const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null
-          const showDateBadge = !prevMsg || formatDateBadge(prevMsg.created_at) !== dateLabel
-          const timeString = new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-          const repliedMsg = msg.reply_to_id ? globalMessages.find(m => m.id === msg.reply_to_id) : null
-          const isActive = activeMsgId === msg.id
+          {filteredMessages.map((msg, idx) => {
+            const isMe = msg.sender_id === myProfile.chat_id
+            const dateLabel = formatDateBadge(msg.created_at)
+            const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null
+            const showDateBadge = !prevMsg || formatDateBadge(prevMsg.created_at) !== dateLabel
+            const timeString = new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            const repliedMsg = msg.reply_to_id ? globalMessages.find(m => m.id === msg.reply_to_id) : null
+            const isActive = activeMsgId === msg.id
 
-          return (
-            <Fragment key={msg.id}>
-              {showDateBadge && (
-                <div className="flex justify-center my-6">
-                  <span className={`text-[10px] font-medium uppercase tracking-wider px-3 py-1 rounded-full bg-black/5 ${colors.textMuted}`}>{dateLabel}</span>
-                </div>
-              )}
-
-              <div className={`flex flex-col max-w-[85%] md:max-w-[70%] group ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
-                {activeChat.type === 'group' && !isMe && <span className={`text-[10px] font-medium ml-3 mb-1 ${colors.textMuted}`}>{msg.sender_id}</span>}
-                
-                <div className={`relative flex items-center gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                  
-                  {/* Actions (Reply) */}
-                  <div className={`transition-opacity flex ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
-                    <button onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setActiveMsgId(null); }} className={`p-1.5 rounded-full bg-black/5 hover:bg-black/10 ${colors.textMuted} hover:text-indigo-500 transition`} title="Balas"><Icons.Reply /></button>
+            return (
+              <Fragment key={msg.id}>
+                {showDateBadge && (
+                  <div className="flex justify-center my-6">
+                    <span className={`text-[10px] font-medium uppercase tracking-wider px-3 py-1 rounded-full bg-black/5 ${colors.textMuted}`}>{dateLabel}</span>
                   </div>
+                )}
 
-                  {/* Bubble Pesan */}
-                  <div 
-                    onClick={(e) => { e.stopPropagation(); setActiveMsgId(isActive ? null : msg.id); }}
-                    className={`p-1 shadow-sm relative flex flex-col transition-all duration-200 cursor-pointer ${isMe ? `${colors.bubbleMe} rounded-2xl rounded-tr-sm` : `${colors.bubbleThem} rounded-2xl rounded-tl-sm`} ${isActive ? 'ring-2 ring-indigo-500/50' : ''}`}
-                  >
-                    <div className="px-2.5 pt-2 pb-1.5 flex flex-col gap-1.5 min-w-[100px]">
-                      
-                      {repliedMsg && (
-                        <div className={`p-2 rounded-lg border-l-2 border-current opacity-80 text-xs ${isMe ? 'bg-black/10' : 'bg-black/5'}`}>
-                          <p className="font-medium mb-0.5">{repliedMsg.sender_id === myProfile.chat_id ? 'Anda' : repliedMsg.sender_id}</p>
-                          <p className="truncate line-clamp-1">{repliedMsg.content || 'Berkas Terlampir'}</p>
-                        </div>
-                      )}
+                <div className={`flex flex-col max-w-[85%] md:max-w-[70%] group ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
+                  {activeChat.type === 'group' && !isMe && <span className={`text-[10px] font-medium ml-3 mb-1 ${colors.textMuted}`}>{msg.sender_id}</span>}
+                  
+                  <div className={`relative flex items-center gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                    
+                    {/* Actions (Copy, Reply, Edit) */}
 
-                      {msg.media_files && msg.media_files.length > 0 && (
-                        <div className={`grid gap-1 ${msg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                          {msg.media_files.map((file, idx) => (
-                            <div key={idx} className="relative group/media overflow-hidden rounded-xl border border-black/5 bg-black/10">
-                              {file.type === 'image' && <img src={file.url} alt="Media" className="object-cover w-full h-48 sm:h-56" />}
-                              {file.type === 'video' && <video src={file.url} controls className="w-full h-48 sm:h-56" />}
-                              {file.type === 'document' && <div className="flex items-center gap-2 p-3 text-sm"><Icons.File /> <span className="truncate max-w-[120px] font-medium">{file.name}</span></div>}
-                              
-                              <a href={file.url} target="_blank" rel="noreferrer" download={file.name} className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md opacity-0 group-hover/media:opacity-100 transition shadow-sm ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-black/50 text-white hover:bg-black/70'}`} title="Download">
-                                <Icons.Download />
-                              </a>
-                            </div>
-                          ))}
-                        </div>
-                      )}
 
-                      <div className="flex items-end gap-3 justify-between mt-0.5">
-                        <p className="text-[14px] break-words whitespace-pre-wrap leading-relaxed max-w-full px-1">{msg.content}</p>
-                        <div className={`flex items-center gap-1 text-[10px] font-mono whitespace-nowrap float-right shrink-0 ${isMe ? 'opacity-80' : colors.textMuted}`}>
-                          <span>{timeString}</span>
-                          {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
+                    {/* Bubble Pesan */}
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); setActiveMsgId(isActive ? null : msg.id); }}
+                      className={`p-1 shadow-sm relative flex flex-col transition-all duration-200 cursor-pointer ${isMe ? `${colors.bubbleMe} rounded-2xl rounded-tr-sm` : `${colors.bubbleThem} rounded-2xl rounded-tl-sm`} ${isActive ? 'ring-2 ring-indigo-500/50' : ''}`}
+                    >
+                      <div className="px-2.5 pt-2 pb-1.5 flex flex-col gap-1.5 min-w-[100px]">
+                        
+                        {repliedMsg && (
+                          <div className={`p-2 rounded-lg border-l-2 border-current opacity-80 text-xs ${isMe ? 'bg-black/10' : 'bg-black/5'}`}>
+                            <p className="font-medium mb-0.5">{repliedMsg.sender_id === myProfile.chat_id ? 'Anda' : repliedMsg.sender_id}</p>
+                            <p className="truncate line-clamp-1">{repliedMsg.content || 'Berkas Terlampir'}</p>
+                          </div>
+                        )}
+
+                        {msg.media_files && msg.media_files.length > 0 && (
+                          <div className={`grid gap-1 ${msg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                            {msg.media_files.map((file, idx) => (
+                              <div key={idx} className="relative group/media overflow-hidden rounded-xl border border-black/5 bg-black/10">
+                                {file.type === 'image' && <img src={file.url} alt="Media" className="object-cover w-full h-48 sm:h-56" />}
+                                {file.type === 'video' && <video src={file.url} controls className="w-full h-48 sm:h-56" />}
+                                {file.type === 'document' && <div className="flex items-center gap-2 p-3 text-sm"><Icons.File /> <span className="truncate max-w-[120px] font-medium">{file.name}</span></div>}
+                                
+                                <a href={file.url} target="_blank" rel="noreferrer" download={file.name} className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md opacity-0 group-hover/media:opacity-100 transition shadow-sm ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-black/50 text-white hover:bg-black/70'}`} title="Download">
+                                  <Icons.Download />
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-end gap-3 justify-between mt-0.5">
+                          <p className="text-[14px] break-words whitespace-pre-wrap leading-relaxed max-w-full px-1">{msg.content}</p>
+                          <div className={`flex items-center gap-1 text-[10px] font-mono whitespace-nowrap float-right shrink-0 ${isMe ? 'opacity-80' : colors.textMuted}`}>
+                            <span>{timeString}</span>
+                            {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
+                          </div>
                         </div>
                       </div>
                     </div>
+                    <div className={`transition-opacity flex items-center gap-1.5 px-2 ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
+  
+  {/* Tombol Copy */}
+  <button 
+    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(msg.content); setActiveMsgId(null); }} 
+    className={`p-1.5 rounded-full bg-black/5 hover:bg-black/10 ${colors.textMuted} hover:text-emerald-500 transition`} 
+    title="Salin">
+    <Icons.Copy />
+  </button>
+
+  {/* Tombol Reply */}
+  <button 
+    onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setEditingMsg(null); setActiveMsgId(null); }} 
+    className={`p-1.5 rounded-full bg-black/5 hover:bg-black/10 ${colors.textMuted} hover:text-indigo-500 transition`} 
+    title="Balas">
+    <Icons.Reply />
+  </button>
+
+  {/* Tombol Edit (Hanya muncul jika pesan milik sendiri) */}
+  {msg.sender_id === myProfile.chat_id && (
+    <button 
+      onClick={(e) => { e.stopPropagation(); setEditingMsg(msg); setInputMessage(msg.content); setReplyingTo(null); setActiveMsgId(null); }} 
+      className={`p-1.5 rounded-full bg-black/5 hover:bg-black/10 ${colors.textMuted} hover:text-amber-500 transition`} 
+      title="Edit">
+      <Icons.Edit />
+    </button>
+  )}
+</div>
                   </div>
                 </div>
-              </div>
-            </Fragment>
-          )
-        })}
-        <div ref={messagesEndRef} className="h-4" />
+              </Fragment>
+            )
+          })}
+          <div ref={messagesEndRef} className="h-4" />
+        </div>
       </div>
 
       {/* Area Input Chat */}
-      <div className={`p-3 flex flex-col gap-2 ${colors.panel} border-t ${colors.border}`}>
+      {/* Area Input Chat */}
+      <div 
+        className={`p-3 flex flex-col gap-2 ${colors.panel} border-t ${colors.border} shrink-0`}
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+      >
+        {editingMsg && (
+          <div className="flex justify-between items-center bg-amber-500/10 rounded-xl p-2.5 mx-1 border border-amber-500/20">
+            <div className="border-l-2 border-amber-500 pl-3 flex-1 overflow-hidden">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 mb-0.5">Mengedit Pesan</p>
+              <p className={`text-xs truncate ${colors.textMuted}`}>{editingMsg.content}</p>
+            </div>
+            <button onClick={() => { setEditingMsg(null); setInputMessage(''); }} className={`p-2 rounded-full hover:bg-black/10 ${colors.textMuted}`}>
+              <Icons.Plus className="rotate-45" />
+            </button>
+          </div>
+        )}
         {replyingTo && (
           <div className="flex justify-between items-center bg-black/5 rounded-xl p-2.5 mx-1">
             <div className="border-l-2 border-indigo-500 pl-3 flex-1 overflow-hidden">
