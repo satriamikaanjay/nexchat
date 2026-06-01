@@ -766,14 +766,14 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
                       onClick={(e) => { e.stopPropagation(); setActiveMsgId(isActive ? null : msg.id); }}
                       className={`p-1 shadow-sm relative flex flex-col transition-all duration-200 cursor-pointer ${isMe ? `${colors.bubbleMe} rounded-2xl rounded-tr-sm` : `${colors.bubbleThem} rounded-2xl rounded-tl-sm`} ${isActive ? 'ring-2 ring-indigo-500/50' : ''}`}
                     >
-                      <div className="px-2.5 pt-2 pb-1.5 flex flex-col gap-1.5 min-w-[100px]">
-                        
-                        {repliedMsg && (
-                          <div className={`p-2 rounded-lg border-l-2 border-current opacity-80 text-xs ${isMe ? 'bg-black/10' : 'bg-black/5'}`}>
-                            <p className="font-medium mb-0.5">{repliedMsg.sender_id === myProfile.chat_id ? 'Anda' : repliedMsg.sender_id}</p>
-                            <p className="truncate line-clamp-1">{repliedMsg.content || 'Berkas Terlampir'}</p>
-                          </div>
-                        )}
+                      <div className="px-2.5 pt-2 pb-1.5 flex flex-col gap-1.5 min-w-[100px] max-w-full overflow-hidden">
+  
+  {repliedMsg && (
+    <div className={`p-2 rounded-lg border-l-2 border-current opacity-80 text-xs overflow-hidden flex flex-col min-w-0 ${isMe ? 'bg-black/10' : 'bg-black/5'}`}>
+      <p className="font-medium mb-0.5 truncate">{repliedMsg.sender_id === myProfile.chat_id ? 'Anda' : repliedMsg.sender_id}</p>
+      <p className="line-clamp-2 break-words whitespace-normal">{repliedMsg.content || 'Berkas Terlampir'}</p>
+    </div>
+  )}
 
                         {msg.media_files && msg.media_files.length > 0 && (
                           <div className={`grid gap-1 ${msg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
