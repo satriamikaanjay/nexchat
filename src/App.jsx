@@ -5,30 +5,6 @@ import { PushNotifications } from '@capacitor/push-notifications';
 
 // ================= IKON SVG MINIMALIS =================
 const Icons = {
-<<<<<<< HEAD
-  Chat: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
-  User: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
-  Settings: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
-  Search: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>,
-  More: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>,
-  ArrowLeft: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>,
-  Plus: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>,
-  Group: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-  Send: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>,
-  Attach: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>,
-  Reply: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 11l8-8v5c7 0 10 3.5 10 10-2-3-5-4-10-4v5l-8-8z"></path></svg>,
-  Download: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>,
-  File: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>,
-  Check: () => <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>,
-  DoubleCheck: () => <svg width="18" height="14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="18 6 7 17 2 12"></polyline><polyline points="22 6 12 16 11 15"></polyline></svg>,
-  Lock: () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
-  Phone: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
-  Video: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>,
-  Copy: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
-  Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>,
-  Share: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>,
-  Edit: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-=======
   Chat: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
   User: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
   Settings: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
@@ -49,7 +25,6 @@ const Icons = {
   Share: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>,
   Edit: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
   Clock: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
->>>>>>> 390626b (Update semua file ke versi terbaru)
 }
 
 const Avatar = ({ url, name, size = 'w-10 h-10', className = '' }) => (
@@ -154,7 +129,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
   const [searchInput, setSearchInput] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
-
+  
   const [unknownProfiles, setUnknownProfiles] = useState({})
   const [blockedIds, setBlockedIds] = useState(() => {
     const saved = localStorage.getItem('blocked_ids')
@@ -169,37 +144,24 @@ function MainApp({ session, myProfile, setMyProfile }) {
   
   // State untuk Custom Popup Konfirmasi
   const [confirmDialog, setConfirmDialog] = useState({ 
-  isOpen: false, title: '', message: '', onConfirm: null, isAlertOnly: false 
-})
-  
- const openConfirm = (title, message, onConfirm, isAlertOnly = false) => {
-  setConfirmDialog({ isOpen: true, title, message, onConfirm, isAlertOnly })
-}
-
-  // State untuk melacak pengguna tak dikenal & pengguna yang diblokir
-  const [unknownProfiles, setUnknownProfiles] = useState({})
-  const [blockedIds, setBlockedIds] = useState(() => {
-    const saved = localStorage.getItem('blocked_ids')
-    return saved ? JSON.parse(saved) : []
+    isOpen: false, title: '', message: '', onConfirm: null, isAlertOnly: false 
   })
+  
+  const openConfirm = (title, message, onConfirm, isAlertOnly = false) => {
+    setConfirmDialog({ isOpen: true, title, message, onConfirm, isAlertOnly })
+  }
 
   const t = dict['id']
   const colors = getTheme(themeName)
 
   const handleSwitchChat = (chat) => {
-  if (isUploading) {
-    // isAlertOnly diset true agar tombol YAKIN hilang
-    openConfirm('TUNGGU DULU! ⏳', 'Tidak bisa pindah obrolan saat sedang upload!', null, true);
-    return;
+    // isUploading perlu diakses dari komponen ChatRoom, namun untuk navigasi ini, 
+    // kita asumsikan jika ada aktivitas upload di tingkat global/chat
+    setActiveChat(chat);
   }
-  setActiveChat(chat);
-}
 
   useEffect(() => { localStorage.setItem('app_theme', themeName) }, [themeName])
   useEffect(() => { localStorage.setItem('blocked_ids', JSON.stringify(blockedIds)) }, [blockedIds])
-<<<<<<< HEAD
-=======
-
   useEffect(() => { localStorage.setItem('hidden_ids', JSON.stringify(hiddenIds)) }, [hiddenIds])
 
   useEffect(() => {
@@ -221,7 +183,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
       setSearchResults(data)
     }
     setIsSearching(false)
-  }, 500) // Jeda 500ms agar database tidak dispam saat mengetik cepat
+  }, 500) 
 
   return () => clearTimeout(timer)
 }, [searchInput, myProfile.chat_id])
@@ -245,7 +207,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
     };
     setupPushNotifications();
   }, []);
->>>>>>> 390626b (Update semua file ke versi terbaru)
+
 
   useEffect(() => {
     const fetchGlobalMessages = async () => {
@@ -263,18 +225,11 @@ function MainApp({ session, myProfile, setMyProfile }) {
     const channel = supabase.channel('global-chat-room')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new;
-<<<<<<< HEAD
-        // Jangan notifikasi jika pengirim diblokir
-        if (blockedIds.includes(msg.sender_id)) return;
-        
-        setGlobalMessages((prev) => [...prev, msg]); 
-=======
         if (blockedIds.includes(msg.sender_id)) return;
         
         setHiddenIds(prev => prev.includes(msg.sender_id) ? prev.filter(id => id !== msg.sender_id) : prev);
-     setGlobalMessages((prev) => [...prev, msg]);
->>>>>>> 390626b (Update semua file ke versi terbaru)
-        
+        setGlobalMessages((prev) => [...prev, msg]);
+
         if (msg.sender_id !== myProfile.chat_id) {
           const isForMe = msg.receiver_id === myProfile.chat_id;
           const isForMyGroup = msg.group_id && groups.some(g => g.id === msg.group_id);
@@ -325,73 +280,12 @@ function MainApp({ session, myProfile, setMyProfile }) {
     initData()
   }, [session.user.id])
 
-<<<<<<< HEAD
-  // ================= LOGIKA MENGAMBIL PROFIL UNTUK PENGGUNA TAK DIKENAL =================
   const savedContactIds = contacts.map(c => c.contact_id);
   const unknownContactIds = [...new Set(
     globalMessages
-      .filter(m => m.receiver_id === myProfile.chat_id && m.sender_id !== myProfile.chat_id && !savedContactIds.includes(m.sender_id) && !blockedIds.includes(m.sender_id))
+      .filter(m => m.receiver_id === myProfile.chat_id && m.sender_id !== myProfile.chat_id && !savedContactIds.includes(m.sender_id) && !blockedIds.includes(m.sender_id) && !hiddenIds.includes(m.sender_id))
       .map(m => m.sender_id)
   )];
-
-  useEffect(() => {
-    const missingIds = unknownContactIds.filter(id => !unknownProfiles[id]);
-    if (missingIds.length === 0) return;
-
-    const fetchMissingProfiles = async () => {
-      const { data } = await supabase.from('profiles').select('chat_id, username, avatar_url').in('chat_id', missingIds);
-      if (data) {
-        setUnknownProfiles(prev => {
-          const updated = { ...prev };
-          data.forEach(p => { updated[p.chat_id] = p });
-          return updated;
-        });
-      }
-    };
-    fetchMissingProfiles();
-  }, [JSON.stringify(unknownContactIds)]) // Fetch otomatis setiap ada pesan dari ID baru
-
-  const unknownContacts = unknownContactIds.map(id => ({
-    id: `unknown-${id}`,
-    contact_id: id,
-    contact_username: unknownProfiles[id]?.username || id, // Fallback ke ID jika loading
-    avatar_url: unknownProfiles[id]?.avatar_url || null,
-    cleared_at: '1970-01-01',
-  }));
-  // ===============================================================================
-
-  const handleQuickSaveContact = async (contactId, username, avatarUrl) => {
-    const { data } = await supabase.from('contacts').insert([{ user_id: session.user.id, contact_id: contactId, contact_username: username, cleared_at: '1970-01-01' }]).select().single()
-    if (data) { 
-      setContacts([{ ...data, avatar_url: avatarUrl }, ...contacts]); 
-    }
-  }
-
-  const handleBlockContact = (contactId) => {
-    if (window.confirm("Yakin ingin memblokir? Semua pesan dari entitas ini akan disembunyikan.")) {
-      setBlockedIds(prev => [...prev, contactId])
-      if (activeChat?.contact_id === contactId) setActiveChat(null)
-    }
-  }
-
-  const executeAddContact = async (e) => {
-    e.preventDefault()
-    if (!contactIdInput || contactIdInput === myProfile.chat_id) return
-    const { data: friendProfile } = await supabase.from('profiles').select('*').eq('chat_id', contactIdInput).single()
-    if (!friendProfile) return alert('ID tidak valid.')
-    if (contacts.find(c => c.contact_id === contactIdInput)) return alert('Entitas sudah ada di jaringan.')
-    
-    const { data } = await supabase.from('contacts').insert([{ user_id: session.user.id, contact_id: friendProfile.chat_id, contact_username: friendProfile.username, cleared_at: '1970-01-01' }]).select().single()
-    if (data) { setContacts([{ ...data, avatar_url: friendProfile.avatar_url }, ...contacts]); setIsAddContactOpen(false); setContactIdInput('') }
-  }
-=======
-  const savedContactIds = contacts.map(c => c.contact_id);
-  const unknownContactIds = [...new Set(
-    globalMessages
-      .filter(m => m.receiver_id === myProfile.chat_id && m.sender_id !== myProfile.chat_id && !savedContactIds.includes(m.sender_id) && !blockedIds.includes(m.sender_id) && !hiddenIds.includes(m.sender_id)) // <- TAMBAH HIDDEN SINI
-      .map(m => m.sender_id)
-  )];
->>>>>>> 390626b (Update semua file ke versi terbaru)
 
   useEffect(() => {
     const missingIds = unknownContactIds.filter(id => !unknownProfiles[id]);
@@ -425,41 +319,12 @@ function MainApp({ session, myProfile, setMyProfile }) {
     }
   }
 
-<<<<<<< HEAD
- return (
-    <div className={`flex fixed inset-0 w-full font-sans overflow-hidden ${colors.base} ${colors.text}`}>
-      
-      {/* SIDEBAR DESKTOP & MOBILE NAVIGATION */}
-      <div className={`flex flex-col h-full w-full md:w-[360px] lg:w-[400px] border-r ${colors.border} ${colors.panel} ${activeChat ? 'hidden md:flex' : 'flex'}`}>
-        
-        {/* Header Sidebar */}
-        <div className={`flex items-center justify-between p-4 border-b ${colors.border} h-[72px] shrink-0`}>
-          <div className="flex items-center gap-3">
-            <Avatar url={myProfile.avatar_url} name={myProfile.username} size="w-10 h-10" />
-            <h1 className="font-bold text-lg hidden sm:block">NexChat</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setActiveMenu('chat')} className={`p-2 rounded-lg transition ${activeMenu === 'chat' ? colors.primary : colors.navIcon}`}><Icons.Chat /></button>
-            <button onClick={() => setActiveMenu('profile')} className={`p-2 rounded-lg transition ${activeMenu === 'profile' ? colors.primary : colors.navIcon}`}><Icons.User /></button>
-            <button onClick={() => setActiveMenu('settings')} className={`p-2 rounded-lg transition ${activeMenu === 'settings' ? colors.primary : colors.navIcon}`}><Icons.Settings /></button>
-            <div className="relative">
-              <button onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)} className={`p-2 rounded-lg transition ${colors.navIcon}`}><Icons.More /></button>
-              {isHeaderMenuOpen && (
-                <div className={`absolute right-0 mt-2 w-48 ${colors.panel} border ${colors.border} rounded-xl shadow-xl z-50 overflow-hidden`}>
-                  <button onClick={() => supabase.auth.signOut()} className="w-full text-left px-4 py-3 text-red-500 font-medium text-sm hover:bg-black/5">Keluar Sesi</button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-=======
   const handleBlockContact = (contactId) => {
     openConfirm('BLOKIR KONTAK', 'Beneran mau diblokir? 🚫', () => {
       setBlockedIds(prev => [...prev, contactId])
       if (activeChat?.contact_id === contactId) setActiveChat(null)
     })
   }
->>>>>>> 390626b (Update semua file ke versi terbaru)
 
   const handleDeleteContact = (e, contactId) => {
     e.stopPropagation()
@@ -467,13 +332,12 @@ function MainApp({ session, myProfile, setMyProfile }) {
       const { error } = await supabase.from('contacts').delete().eq('contact_id', contactId).eq('user_id', session.user.id)
       if (!error) {
         setContacts(contacts.filter(c => c.contact_id !== contactId))
-        setHiddenIds(prev => [...prev, contactId]) // Hilangkan dari daftar obrolan
+        setHiddenIds(prev => [...prev, contactId]) 
         if (activeChat?.contact_id === contactId) setActiveChat(null)
       }
     })
   }
 
-  // --- Fungsi Pencarian & Tambah Teman Baru ---
   const handleSearchContact = async (e) => {
     e.preventDefault()
     if (!searchInput.trim()) return
@@ -515,8 +379,6 @@ function MainApp({ session, myProfile, setMyProfile }) {
     setSearchResults([])
   }
 
- 
-
  return (
     <div translate="no" className={`flex fixed inset-0 w-full font-sans overflow-hidden ${colors.base} ${colors.text}`}>
       
@@ -524,29 +386,25 @@ function MainApp({ session, myProfile, setMyProfile }) {
       <div className={`flex flex-col h-full w-full md:w-[380px] border-r-0 md:border-r-[4px] ${colors.border} ${colors.panel} ${activeChat ? 'hidden md:flex' : 'flex'} shadow-none md:shadow-[8px_0_0_0_rgba(0,0,0,0.1)] z-10`}>
         
         <div className={`flex items-center justify-between p-3 md:p-4 border-b-[3px] md:border-b-[4px] ${colors.border} h-[70px] md:h-[84px] shrink-0 bg-black/5`}>
-  {/* Tambahkan overflow-hidden di sini agar teks panjang terpotong otomatis (truncate) */}
-  <div className="flex items-center gap-2 overflow-hidden">
-    <Avatar url={myProfile.avatar_url} name={myProfile.username} size="w-10 h-10 md:w-12 md:h-12" />
-    <h1 className="font-black text-lg md:text-xl uppercase tracking-widest hidden sm:block truncate text-shadow-[2px_2px_0_0_#000]">NexChat!</h1>
-  </div>
-  
-  {/* Tambahkan shrink-0 dan kurangi gap sedikit agar tombol tidak terlempar keluar */}
-  <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-    <button onClick={() => setActiveMenu('chat')} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] ${activeMenu === 'chat' ? colors.primary : `bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1`} transition-all`}><Icons.Chat /></button>
-    <button onClick={() => setActiveMenu('profile')} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] ${activeMenu === 'profile' ? colors.primary : `bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1`} transition-all`}><Icons.User /></button>
-    <div className="relative">
-      <button onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all`}><Icons.More /></button>
-      {isHeaderMenuOpen && (
-        <div className={`absolute right-0 mt-3 w-40 md:w-48 ${colors.panel} border-[3px] md:border-[4px] border-black rounded-[1rem] md:rounded-[1.5rem] shadow-[4px_4px_0_0_#000] z-50 overflow-hidden`}>
-          <button onClick={() => setActiveMenu('settings')} className="w-full text-left px-4 py-3 md:py-4 font-black text-sm md:text-base border-b-[2px] md:border-b-[3px] border-black hover:bg-black/10 transition-colors uppercase">Setelan ⚙️</button>
-          <button onClick={() => openConfirm('KELUAR PINTU', 'Yakin mau keluar dari NexChat?', () => supabase.auth.signOut())} className="w-full text-left px-4 py-3 md:py-4 text-white bg-[#ff5757] text-sm md:text-base font-black hover:bg-[#ff3b3b] transition-colors uppercase">Keluar 🚪</button>
+            <div className="flex items-center gap-2 overflow-hidden">
+                <Avatar url={myProfile.avatar_url} name={myProfile.username} size="w-10 h-10 md:w-12 md:h-12" />
+                <h1 className="font-black text-lg md:text-xl uppercase tracking-widest hidden sm:block truncate text-shadow-[2px_2px_0_0_#000]">NexChat!</h1>
+            </div>
+            <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                <button onClick={() => setActiveMenu('chat')} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] ${activeMenu === 'chat' ? colors.primary : `bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1`} transition-all`}><Icons.Chat /></button>
+                <button onClick={() => setActiveMenu('profile')} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] ${activeMenu === 'profile' ? colors.primary : `bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1`} transition-all`}><Icons.User /></button>
+                <div className="relative">
+                <button onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all`}><Icons.More /></button>
+                {isHeaderMenuOpen && (
+                    <div className={`absolute right-0 mt-3 w-40 md:w-48 ${colors.panel} border-[3px] md:border-[4px] border-black rounded-[1rem] md:rounded-[1.5rem] shadow-[4px_4px_0_0_#000] z-50 overflow-hidden`}>
+                    <button onClick={() => setActiveMenu('settings')} className="w-full text-left px-4 py-3 md:py-4 font-black text-sm md:text-base border-b-[2px] md:border-b-[3px] border-black hover:bg-black/10 transition-colors uppercase">Setelan ⚙️</button>
+                    <button onClick={() => openConfirm('KELUAR PINTU', 'Yakin mau keluar dari NexChat?', () => supabase.auth.signOut())} className="w-full text-left px-4 py-3 md:py-4 text-white bg-[#ff5757] text-sm md:text-base font-black hover:bg-[#ff3b3b] transition-colors uppercase">Keluar 🚪</button>
+                    </div>
+                )}
+                </div>
+            </div>
         </div>
-      )}
-    </div>
-  </div>
-</div>
 
-        {/* Modal Cari/Tambah Teman */}
         <Modal isOpen={isAddContactOpen} onClose={() => {setIsAddContactOpen(false); setSearchResults([]); setSearchInput('');}} title="CARI TEMAN 👾" colors={colors}>
           <form onSubmit={handleSearchContact} className="space-y-4">
             <div>
@@ -559,8 +417,6 @@ function MainApp({ session, myProfile, setMyProfile }) {
               </div>
             </div>
           </form>
-          
-          {/* Daftar Hasil Pencarian */}
           <div className="mt-5 space-y-3 max-h-[40vh] overflow-y-auto pr-1">
              {searchResults.length === 0 && searchInput && !isSearching && (
                 <p className="text-center font-bold text-xs md:text-sm uppercase opacity-70 mt-4">Pencarian tidak ditemukan.</p>
@@ -582,7 +438,6 @@ function MainApp({ session, myProfile, setMyProfile }) {
           </div>
         </Modal>
 
-        {/* Konten Tab Kiri */}
         <div className="flex-1 overflow-y-auto" onClick={() => setIsHeaderMenuOpen(false)}>
           {activeMenu === 'profile' && <ProfileModule session={session} myProfile={myProfile} setMyProfile={setMyProfile} t={t} colors={colors} />}
           {activeMenu === 'settings' && (
@@ -606,66 +461,18 @@ function MainApp({ session, myProfile, setMyProfile }) {
                   <input type="text" placeholder="CARI TEMAN..." className="bg-transparent border-none outline-none w-full text-sm md:text-base font-bold placeholder-gray-500 uppercase" />
                 </div>
               </div>
-<<<<<<< HEAD
-              <div className="flex-1 overflow-y-auto">
-                {/* 1. Render Grup */}
-                {groups.map(g => {
-                  const unreadCount = globalMessages.filter(m => m.group_id === g.id && m.sender_id !== myProfile.chat_id && !m.is_read && !blockedIds.includes(m.sender_id)).length;
-                  return (
-                    <div key={g.id} onClick={() => setActiveChat({...g, type: 'group'})} className={`p-4 border-b ${colors.border} cursor-pointer hover:bg-black/5 flex items-center gap-3 ${activeChat?.id === g.id ? 'bg-black/5' : ''}`}>
-                      <Avatar url={g.avatar_url} name={g.name} size="w-12 h-12" />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm truncate">{g.name}</h3>
-                        {unreadCount > 0 ? (
-                          <p className="text-xs font-bold text-indigo-500 mt-0.5 truncate">Pesan baru belum dibaca</p>
-                        ) : (
-                          <p className={`text-xs truncate mt-0.5 ${colors.textMuted}`}>Grup Obrolan</p>
-                        )}
-                      </div>
-                      {unreadCount > 0 && (
-                        <div className="bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{unreadCount}</div>
-                      )}
-                    </div>
-                  )
-                })}
-                
-                {contacts.length === 0 && groups.length === 0 && unknownContacts.length === 0 ? (
-                   <div className={`p-8 text-center text-sm ${colors.textMuted}`}>Belum ada percakapan.</div>
-                ) : (
-                  <>
-                    {/* 2. Render Kontak Belum Tersimpan (DARI PESAN BARU MASUK) */}
-=======
               
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                
                 {contacts.length === 0 && unknownContacts.length === 0 ? (
                    <div className={`p-6 md:p-10 text-center font-black uppercase text-lg md:text-xl mt-6 md:mt-10 opacity-50`}>SEPI BANGET... 🌵</div>
                 ) : (
                   <>
->>>>>>> 390626b (Update semua file ke versi terbaru)
                     {unknownContacts.map(c => {
                       const isOnline = onlineUsers.includes(c.contact_id);
                       const unreadCount = globalMessages.filter(m => m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read).length;
 
                       return (
-<<<<<<< HEAD
-                        <div key={c.id} onClick={() => setActiveChat({...c, type: 'personal'})} className={`p-4 border-b ${colors.border} cursor-pointer hover:bg-indigo-500/5 flex items-center gap-3 transition group ${activeChat?.contact_id === c.contact_id ? 'bg-indigo-500/10' : ''}`}>
-                          <div className="relative">
-                            <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12" />
-                            {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#18181b] rounded-full"></span>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`text-sm truncate ${unreadCount > 0 ? 'font-bold text-current' : 'font-medium'}`}>
-                              {c.contact_id} {c.contact_username && c.contact_username !== c.contact_id ? `(${c.contact_username})` : ''}
-                              {/* Label Baru hanya muncul selama pesan belum dibaca! Jika chat dibuka, unreadCount akan 0 dan label otomatis hilang */}
-                              {unreadCount > 0 && <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-500 px-1.5 py-0.5 rounded ml-2 uppercase">Baru</span>}
-                            </h3>
-                            {unreadCount > 0 ? (
-                              <p className="text-xs font-bold text-indigo-500 mt-0.5 truncate">Pesan baru belum dibaca</p>
-                            ) : (
-                              <p className={`text-xs truncate mt-0.5 ${colors.textMuted}`}>Belum ada di kontak</p>
-=======
-                        <div key={c.id} onClick={() => setActiveChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-gray-100 text-black'}`}>
+                        <div key={c.id} onClick={() => handleSwitchChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-gray-100 text-black'}`}>
                           <div className="relative">
                             <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12 md:w-14 md:h-14" />
                             {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 md:w-4 md:h-4 bg-[#00e676] border-[2px] border-black rounded-full shadow-[1px_1px_0_0_#000]"></span>}
@@ -679,17 +486,12 @@ function MainApp({ session, myProfile, setMyProfile }) {
                               <p className="text-[10px] md:text-xs font-black text-[#ff5757] mt-1 bg-red-100 inline-block px-2 py-0.5 rounded-full border border-black uppercase">Pesan Baru!</p>
                             ) : (
                               <p className={`text-xs md:text-sm font-bold truncate mt-1 text-gray-500`}>Siapa nih? 🤔</p>
->>>>>>> 390626b (Update semua file ke versi terbaru)
                             )}
                           </div>
                         </div>
                       )
                     })}
 
-<<<<<<< HEAD
-                    {/* 3. Render Kontak Tersimpan */}
-=======
->>>>>>> 390626b (Update semua file ke versi terbaru)
                     {contacts.map(c => {
                       const isOnline = onlineUsers.includes(c.contact_id);
                       const clearedAtTime = new Date(c.cleared_at || '1970-01-01').getTime();
@@ -699,21 +501,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                       }).length;
 
                       return (
-<<<<<<< HEAD
-                        <div key={c.id} onClick={() => setActiveChat({...c, type: 'personal'})} className={`p-4 border-b ${colors.border} cursor-pointer hover:bg-black/5 flex items-center gap-3 transition group ${activeChat?.contact_id === c.contact_id ? 'bg-black/5' : ''}`}>
-                          <div className="relative">
-                            <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12" />
-                            {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#18181b] rounded-full"></span>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            {/* Kontak yang disimpan HANYA menampilkan Nama */}
-                            <h3 className={`text-sm truncate ${unreadCount > 0 ? 'font-bold text-current' : 'font-medium'}`}>{c.contact_username}</h3>
-                            {unreadCount > 0 ? (
-                              <p className="text-xs font-bold text-indigo-500 mt-0.5 truncate">Pesan baru belum dibaca</p>
-                            ) : (
-                              <p className={`text-xs truncate mt-0.5 ${colors.textMuted}`}>ID: {c.contact_id}</p>
-=======
-                        <div key={c.id} onClick={() => setActiveChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-white text-black'}`}>
+                        <div key={c.id} onClick={() => handleSwitchChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-white text-black'}`}>
                           <div className="relative">
                             <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12 md:w-14 md:h-14" />
                             {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 md:w-4 md:h-4 bg-[#00e676] border-[2px] border-black rounded-full shadow-[1px_1px_0_0_#000]"></span>}
@@ -724,20 +512,13 @@ function MainApp({ session, myProfile, setMyProfile }) {
                               <p className="text-[10px] md:text-xs font-black text-[#ff5757] mt-1 bg-red-100 inline-block px-2 py-0.5 rounded-full border border-black uppercase">Pesan Baru!</p>
                             ) : (
                               <p className={`text-xs md:text-sm font-bold truncate mt-1 text-gray-500 font-mono`}>ID: {c.contact_id}</p>
->>>>>>> 390626b (Update semua file ke versi terbaru)
                             )}
                           </div>
                           <div className="flex items-center gap-2">
                             {unreadCount > 0 && (
-<<<<<<< HEAD
-                              <div className="bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{unreadCount}</div>
-                            )}
-                            <button onClick={(e) => handleDeleteContact(e, c.contact_id)} className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all ${colors.textMuted}`} title="Hapus Kontak">
-=======
                               <div className="bg-[#ff5757] text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded-full border-[2px] border-black shadow-[2px_2px_0_0_#000]">{unreadCount}</div>
                             )}
                             <button onClick={(e) => handleDeleteContact(e, c.contact_id)} className={`p-2 md:p-2.5 rounded-xl opacity-100 md:opacity-0 md:group-hover:opacity-100 bg-[#ff5757] text-white border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] transition-all`} title="Hapus">
->>>>>>> 390626b (Update semua file ke versi terbaru)
                               <Icons.Trash />
                             </button>
                           </div>
@@ -770,39 +551,32 @@ function MainApp({ session, myProfile, setMyProfile }) {
             contacts={contacts} setContacts={setContacts} groups={groups} setGroups={setGroups} 
             globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} onlineUsers={onlineUsers}
             onQuickSave={handleQuickSaveContact} onBlock={handleBlockContact} blockedIds={blockedIds}
-<<<<<<< HEAD
-=======
             openConfirm={openConfirm}
->>>>>>> 390626b (Update semua file ke versi terbaru)
           />
         )}
       </div>
 
       <Modal isOpen={confirmDialog.isOpen} onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} title={confirmDialog.title} colors={colors}>
-  <div className="p-2 md:p-4 text-center text-black">
-    <p className="font-bold text-base md:text-lg">{confirmDialog.message}</p>
-    <div className="mt-6 md:mt-8 flex gap-3 md:gap-4">
-       
-       {/* Tombol Batal/Oke (Ganti teks sesuai kondisi) */}
-       <button 
-         onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} 
-         className="flex-1 bg-white border-[2px] md:border-[3px] border-black rounded-xl md:rounded-2xl py-2 md:py-3 font-black shadow-[3px_3px_0_0_#000] hover:-translate-y-1 active:shadow-[0px_0px_0_0_#000] transition-all uppercase"
-       >
-         {confirmDialog.isAlertOnly ? 'OKE' : 'BATAL'}
-       </button>
-
-       {/* Tombol Yakin (Hanya muncul jika isAlertOnly FALSE) */}
-       {!confirmDialog.isAlertOnly && (
-         <button 
-           onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ ...confirmDialog, isOpen: false }) }} 
-           className="flex-1 bg-[#ff5757] text-white border-[2px] md:border-[3px] border-black rounded-xl md:rounded-2xl py-2 md:py-3 font-black shadow-[3px_3px_0_0_#000] hover:-translate-y-1 active:shadow-[0px_0px_0_0_#000] transition-all uppercase"
-         >
-           YAKIN!
-         </button>
-       )}
-    </div>
-  </div>
-</Modal>
+        <div className="p-2 md:p-4 text-center text-black">
+          <p className="font-bold text-base md:text-lg">{confirmDialog.message}</p>
+          <div className="mt-6 md:mt-8 flex gap-3 md:gap-4">
+             <button 
+               onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} 
+               className="flex-1 bg-white border-[2px] md:border-[3px] border-black rounded-xl md:rounded-2xl py-2 md:py-3 font-black shadow-[3px_3px_0_0_#000] hover:-translate-y-1 active:shadow-[0px_0px_0_0_#000] transition-all uppercase"
+             >
+               {confirmDialog.isAlertOnly ? 'OKE' : 'BATAL'}
+             </button>
+             {!confirmDialog.isAlertOnly && (
+               <button 
+                 onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ ...confirmDialog, isOpen: false }) }} 
+                 className="flex-1 bg-[#ff5757] text-white border-[2px] md:border-[3px] border-black rounded-xl md:rounded-2xl py-2 md:py-3 font-black shadow-[3px_3px_0_0_#000] hover:-translate-y-1 active:shadow-[0px_0px_0_0_#000] transition-all uppercase"
+               >
+                 YAKIN!
+               </button>
+             )}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -824,11 +598,9 @@ function ProfileModule({ session, myProfile, setMyProfile, t, colors }) {
     const fileExt = file.name.split('.').pop(); 
     const filePath = `${session.user.id}/avatar_${Date.now()}.${fileExt}` 
     
-    // Proses Upload
     const { error } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true })
     
     if (error) {
-      // 👇 TAMBAHAN: Agar ketahuan jika Supabase menolak foto kita
       alert('Gagal mengunggah foto! Pesan Error: ' + error.message)
     } else {
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
@@ -879,16 +651,15 @@ function ProfileModule({ session, myProfile, setMyProfile, t, colors }) {
   )
 }
 
-function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, contacts, setContacts, groups, setGroups, globalMessages, setGlobalMessages, onlineUsers, onQuickSave, onBlock, blockedIds }) {
+function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, contacts, setContacts, groups, setGroups, globalMessages, setGlobalMessages, onlineUsers, onQuickSave, onBlock, blockedIds, openConfirm }) {
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [pendingMessages, setPendingMessages] = useState([])
-const [isProcessingQueue, setIsProcessingQueue] = useState(false)
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false)
+  const [previewMedia, setPreviewMedia] = useState(null)
+  const [isUploading, setIsUploading] = useState(false)
 
-const [previewMedia, setPreviewMedia] = useState(null)
-
-const chatContainerRef = useRef(null); 
-
+  const chatContainerRef = useRef(null); 
   const [isAtBottom, setIsAtBottom] = useState(true); 
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false)
   const [isContactInfoOpen, setIsContactInfoOpen] = useState(false)
@@ -896,28 +667,9 @@ const chatContainerRef = useRef(null);
   const [replyingTo, setReplyingTo] = useState(null)
   const [activeMsgId, setActiveMsgId] = useState(null)
   const [editingMsg, setEditingMsg] = useState(null)
-  const [isUploading, setIsUploading] = useState(false)
   
   const mediaInputRef = useRef(null); const channelRef = useRef(null); const messagesEndRef = useRef(null); const typingTimeoutRef = useRef(null)
 
-<<<<<<< HEAD
-  // LOGIKA PENGGUNA BELUM DIKENAL
-  const isSavedContact = activeChat.type === 'personal' && contacts.some(c => c.contact_id === activeChat.contact_id);
-  const isUnknownContact = activeChat.type === 'personal' && !isSavedContact;
-
-  useEffect(() => { setIsHeaderMenuOpen(false); setIsContactInfoOpen(false); setReplyingTo(null); setEditingMsg(null); setActiveMsgId(null); setIsTyping(false); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100) }, [activeChat])
-
-  useEffect(() => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, 50)
-  }, [globalMessages])
-  useEffect(() => {
-    if (!activeChat) return;
-    const roomName = activeChat.type === 'group' 
-      ? `typing-room-${activeChat.id}` 
-      : `typing-room-${[myProfile.chat_id, activeChat.contact_id].sort().join('-')}`;
-=======
   const isSavedContact = activeChat.type === 'personal' && contacts.some(c => c.contact_id === activeChat.contact_id);
   const isUnknownContact = activeChat.type === 'personal' && !isSavedContact;
 
@@ -995,7 +747,6 @@ const chatContainerRef = useRef(null);
   useEffect(() => {
     if (!activeChat) return;
     const roomName = `typing-room-${[myProfile.chat_id, activeChat.contact_id].sort().join('-')}`;
->>>>>>> 390626b (Update semua file ke versi terbaru)
       
     const channel = supabase.channel(roomName)
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
@@ -1005,37 +756,6 @@ const chatContainerRef = useRef(null);
     channelRef.current = channel; 
     return () => { supabase.removeChannel(channel) }
   }, [activeChat, myProfile.chat_id])
-
-<<<<<<< HEAD
-  // OPTIMISTIC UI UPDATE: Pesan otomatis dibaca. 
-  // Karena pesan dibaca, label 'Baru' akan langsung menghilang secara real-time!
-  useEffect(() => {
-    if (!activeChat || activeChat.type === 'group') return
-    const unreadMsgs = globalMessages.filter(m => m.sender_id === activeChat.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read)
-    if (unreadMsgs.length > 0) {
-      setGlobalMessages(prev => prev.map(m => (m.sender_id === activeChat.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read) ? { ...m, is_read: true } : m));
-      supabase.from('messages').update({ is_read: true }).in('id', unreadMsgs.map(m => m.id)).then()
-    }
-  }, [activeChat, globalMessages, myProfile.chat_id, setGlobalMessages])
-
-  const handleClearChatLocal = async () => {
-    if (!window.confirm("Sembunyikan riwayat obrolan ini dari layar Anda? (Lawan bicara tetap bisa melihatnya)")) return
-    setIsHeaderMenuOpen(false)
-    const now = new Date().toISOString()
-    
-    if (activeChat.type === 'group') {
-      await supabase.from('group_members').update({ cleared_at: now }).eq('group_id', activeChat.id).eq('user_id', session.user.id)
-      setGroups(groups.map(g => g.id === activeChat.id ? { ...g, cleared_at: now } : g))
-      setActiveChat(prev => ({ ...prev, cleared_at: now }))
-    } else {
-      await supabase.from('contacts').update({ cleared_at: now }).eq('contact_id', activeChat.contact_id).eq('user_id', session.user.id)
-      setContacts(contacts.map(c => c.contact_id === activeChat.contact_id ? { ...c, cleared_at: now } : c))
-      setActiveChat(prev => ({ ...prev, cleared_at: now }))
-    }
-  }
-=======
-  
->>>>>>> 390626b (Update semua file ke versi terbaru)
 
   const handleTyping = (e) => {
     setInputMessage(e.target.value)
@@ -1047,24 +767,6 @@ const chatContainerRef = useRef(null);
   }
 
  const handleSendMessage = async (e) => {
-<<<<<<< HEAD
-    e.preventDefault(); 
-    if (!inputMessage.trim()) return;
-
-    // JIKA SEDANG MODE EDIT
-    if (editingMsg) {
-      await supabase.from('messages').update({ content: inputMessage }).eq('id', editingMsg.id);
-      setEditingMsg(null);
-      setInputMessage('');
-      return;
-    }
-
-    // JIKA MENGIRIM PESAN BARU (KODE LAMA)
-    const payload = { sender_id: myProfile.chat_id, content: inputMessage, is_read: false, reply_to_id: replyingTo?.id || null }
-    if (activeChat.type === 'group') payload.group_id = activeChat.id; else payload.receiver_id = activeChat.contact_id
-    await supabase.from('messages').insert([payload]); setInputMessage(''); setReplyingTo(null)
-    channelRef.current?.send({ type: 'broadcast', event: 'typing', payload: { sender_id: myProfile.chat_id, status: false } })
-=======
   if (e) e.preventDefault(); 
   if (!inputMessage.trim()) return;
 
@@ -1072,7 +774,6 @@ const chatContainerRef = useRef(null);
     await supabase.from('messages').update({ content: inputMessage }).eq('id', editingMsg.id);
     setEditingMsg(null); setInputMessage('');
     return;
->>>>>>> 390626b (Update semua file ke versi terbaru)
   }
 
   const tempMsg = {
@@ -1100,16 +801,6 @@ const chatContainerRef = useRef(null);
     setIsUploading(false); e.target.value = ''
   }
 
-<<<<<<< HEAD
-  const clearedAtTime = new Date(activeChat.cleared_at || '1970-01-01').getTime();
-  const filteredMessages = globalMessages.filter(msg => {
-    if (blockedIds.includes(msg.sender_id)) return false; // Jangan tampilkan jika diblokir
-    const msgTime = new Date(msg.created_at).getTime();
-    if (msgTime <= clearedAtTime) return false;
-    if (activeChat?.type === 'group') return msg.group_id === activeChat.id
-    return (msg.sender_id === myProfile.chat_id && msg.receiver_id === activeChat?.contact_id) || (msg.sender_id === activeChat?.contact_id && msg.receiver_id === myProfile.chat_id)
-  })
-=======
   useEffect(() => {
     if (!activeChat || activeChat.type === 'group') return;
     if (!isAtBottom) return; 
@@ -1120,7 +811,6 @@ const chatContainerRef = useRef(null);
       supabase.from('messages').update({ is_read: true }).in('id', unreadMsgs.map(m => m.id)).then()
     }
   }, [activeChat, globalMessages, myProfile.chat_id, setGlobalMessages, isAtBottom]) 
->>>>>>> 390626b (Update semua file ke versi terbaru)
 
   let lastDateLabel = null
 
@@ -1171,92 +861,7 @@ const chatContainerRef = useRef(null);
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* Area Chat */}
-      <div className="flex-1 overflow-y-auto space-y-3 relative" onClick={() => { setIsHeaderMenuOpen(false); setActiveMsgId(null); }}>
-        
-        {/* BANNER: Simpan atau Blokir Kontak jika belum dikenal */}
-        {isUnknownContact && (
-           <div className={`sticky top-0 z-10 mx-4 mt-4 p-3 rounded-xl border ${colors.border} bg-indigo-500/10 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm`}>
-             <p className={`text-xs font-medium`}>Nomor ini tidak ada di daftar kontak Anda.</p>
-             <div className="flex gap-2 w-full sm:w-auto">
-                <button onClick={() => onQuickSave(activeChat.contact_id, activeChat.contact_username, activeChat.avatar_url)} className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 transition shadow-sm">Simpan Kontak</button>
-                <button onClick={() => onBlock(activeChat.contact_id)} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-red-500/50 text-red-500 bg-red-500/5 text-xs font-bold hover:bg-red-500/20 transition">Blokir</button>
-             </div>
-           </div>
-        )}
-
-        <div className={`p-4 space-y-3 ${isUnknownContact ? 'pt-0' : ''}`}>
-          <div className="flex justify-center mb-6">
-            <div className={`text-[10px] font-medium px-4 py-1.5 rounded-full border ${colors.border} ${colors.textMuted} flex items-center gap-1.5`}>
-              <Icons.Lock /> <span>Enkripsi Ujung-ke-Ujung Aktif</span>
-            </div>
-          </div>
-
-          {filteredMessages.map((msg, idx) => {
-            const isMe = msg.sender_id === myProfile.chat_id
-            const dateLabel = formatDateBadge(msg.created_at)
-            const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null
-            const showDateBadge = !prevMsg || formatDateBadge(prevMsg.created_at) !== dateLabel
-            const timeString = new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-            const repliedMsg = msg.reply_to_id ? globalMessages.find(m => m.id === msg.reply_to_id) : null
-            const isActive = activeMsgId === msg.id
-
-            return (
-              <Fragment key={msg.id}>
-                {showDateBadge && (
-                  <div className="flex justify-center my-6">
-                    <span className={`text-[10px] font-medium uppercase tracking-wider px-3 py-1 rounded-full bg-black/5 ${colors.textMuted}`}>{dateLabel}</span>
-                  </div>
-                )}
-
-                <div className={`flex flex-col max-w-[85%] md:max-w-[70%] group ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
-                  {activeChat.type === 'group' && !isMe && <span className={`text-[10px] font-medium ml-3 mb-1 ${colors.textMuted}`}>{msg.sender_id}</span>}
-                  
-                  <div className={`relative flex items-center gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                    
-                    {/* Actions (Copy, Reply, Edit) */}
-
-
-                    {/* Bubble Pesan */}
-                    <div 
-                      onClick={(e) => { e.stopPropagation(); setActiveMsgId(isActive ? null : msg.id); }}
-                      className={`p-1 shadow-sm relative flex flex-col transition-all duration-200 cursor-pointer ${isMe ? `${colors.bubbleMe} rounded-2xl rounded-tr-sm` : `${colors.bubbleThem} rounded-2xl rounded-tl-sm`} ${isActive ? 'ring-2 ring-indigo-500/50' : ''}`}
-                    >
-                      <div className="px-2.5 pt-2 pb-1.5 flex flex-col gap-1.5 min-w-[100px] max-w-full overflow-hidden">
-  
-  {repliedMsg && (
-    <div className={`p-2 rounded-lg border-l-2 border-current opacity-80 text-xs overflow-hidden flex flex-col min-w-0 ${isMe ? 'bg-black/10' : 'bg-black/5'}`}>
-      <p className="font-medium mb-0.5 truncate">{repliedMsg.sender_id === myProfile.chat_id ? 'Anda' : repliedMsg.sender_id}</p>
-      <p className="line-clamp-2 break-words whitespace-normal">{repliedMsg.content || 'Berkas Terlampir'}</p>
-    </div>
-  )}
-
-                        {msg.media_files && msg.media_files.length > 0 && (
-                          <div className={`grid gap-1 ${msg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                            {msg.media_files.map((file, idx) => (
-                              <div key={idx} className="relative group/media overflow-hidden rounded-xl border border-black/5 bg-black/10">
-                                {file.type === 'image' && <img src={file.url} alt="Media" className="object-cover w-full h-48 sm:h-56" />}
-                                {file.type === 'video' && <video src={file.url} controls className="w-full h-48 sm:h-56" />}
-                                {file.type === 'document' && <div className="flex items-center gap-2 p-3 text-sm"><Icons.File /> <span className="truncate max-w-[120px] font-medium">{file.name}</span></div>}
-                                
-                                <a href={file.url} target="_blank" rel="noreferrer" download={file.name} className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md opacity-0 group-hover/media:opacity-100 transition shadow-sm ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-black/50 text-white hover:bg-black/70'}`} title="Download">
-                                  <Icons.Download />
-                                </a>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex items-end gap-3 justify-between mt-0.5">
-                          <p className="text-[14px] break-words whitespace-pre-wrap leading-relaxed max-w-full px-1">{msg.content}</p>
-                          <div className={`flex items-center gap-1 text-[10px] font-mono whitespace-nowrap float-right shrink-0 ${isMe ? 'opacity-80' : colors.textMuted}`}>
-                            <span>{timeString}</span>
-                            {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
-                          </div>
-=======
       <div className="flex-1 flex flex-col relative min-h-0 bg-gradient-to-br from-transparent to-black/5">
-        
         <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 px-2" onClick={() => { setIsHeaderMenuOpen(false); setActiveMsgId(null); }}>
           
           {isUnknownContact && (
@@ -1323,8 +928,6 @@ const chatContainerRef = useRef(null);
                           {msg.media_files && msg.media_files.length > 0 && (
                             <div className={`grid gap-2 ${msg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} mt-1`}>
                               {msg.media_files.map((file, idx) => {
-                                
-                                // Jika file DOKUMEN: Klik langsung Download
                                 if (file.type === 'document') {
                                   return (
                                     <a key={idx} href={file.url} target="_blank" rel="noreferrer" download={file.name} className="relative group/media overflow-hidden rounded-lg md:rounded-xl border-[2px] md:border-[3px] border-black shadow-[2px_2px_0_0_#000] block hover:-translate-y-1 transition-transform bg-[#ffde59]">
@@ -1337,14 +940,10 @@ const chatContainerRef = useRef(null);
                                     </a>
                                   )
                                 }
-
-                                // Jika file GAMBAR / VIDEO: Munculkan icon download terus & klik untuk preview
                                 return (
                                   <div key={idx} className="relative group/media overflow-hidden rounded-lg md:rounded-xl border-[2px] md:border-[3px] border-black bg-white shadow-[2px_2px_0_0_#000]">
                                     {file.type === 'image' && <img src={file.url} alt="Media" onClick={() => setPreviewMedia({url: file.url, type: 'image'})} className="object-cover w-full h-32 md:h-48 sm:h-56 cursor-pointer" />}
                                     {file.type === 'video' && <video src={file.url} onClick={() => setPreviewMedia({url: file.url, type: 'video'})} className="object-cover w-full h-32 md:h-48 sm:h-56 cursor-pointer" />}
-                                    
-                                    {/* Icon download opacity-100 agar muncul terus */}
                                     <a href={file.url} target="_blank" rel="noreferrer" download={file.name} onClick={(e) => e.stopPropagation()} className={`absolute top-2 right-2 p-1.5 md:p-2 rounded-lg md:rounded-xl border-2 border-black opacity-100 shadow-[2px_2px_0_0_#000] bg-[#38b6ff] text-black hover:-translate-y-1 hover:shadow-[3px_3px_0_0_#000] md:hover:shadow-[4px_4px_0_0_#000] transition-transform z-20`} title="Unduh">
                                       <Icons.Download />
                                     </a>
@@ -1364,7 +963,6 @@ const chatContainerRef = useRef(null);
                         </div>
                       </div>
                       
-                      {/* 👇 GANTI flex-col MENJADI flex-row AGAR MENYAMPING DI MOBILE 👇 */}
                       <div className={`transition-all flex flex-row items-center gap-1 md:gap-2 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-90 md:group-hover:opacity-100 md:group-hover:scale-100'}`}>
                         <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(msg.content); setActiveMsgId(null); }} className={`p-1.5 md:p-2 rounded-full bg-white text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all shrink-0`} title="Copy"><Icons.Copy /></button>
                         <button onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setEditingMsg(null); setActiveMsgId(null); }} className={`p-1.5 md:p-2 rounded-full bg-[#ffde59] text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all shrink-0`} title="Balas"><Icons.Reply /></button>
@@ -1372,8 +970,6 @@ const chatContainerRef = useRef(null);
                           <button onClick={(e) => { e.stopPropagation(); setEditingMsg(msg); setInputMessage(msg.content); setReplyingTo(null); setActiveMsgId(null); }} className={`p-1.5 md:p-2 rounded-full bg-[#38b6ff] text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all shrink-0`} title="Edit"><Icons.Edit /></button>
                         )}
                       </div>
-                      
-                      
                     </div>
                   </div>
                 </Fragment>
@@ -1396,54 +992,17 @@ const chatContainerRef = useRef(null);
                         <p className="text-sm md:text-[16px] font-bold break-words">{msg.content}</p>
                         <div className={`flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-black pt-1 md:pt-2 opacity-80`}>
                           <span><Icons.Clock /></span>
->>>>>>> 390626b (Update semua file ke versi terbaru)
                         </div>
                       </div>
                     </div>
-                    <div className={`transition-opacity flex items-center gap-1.5 px-2 ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
-  
-  {/* Tombol Copy */}
-  <button 
-    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(msg.content); setActiveMsgId(null); }} 
-    className={`p-1.5 rounded-full bg-black/5 hover:bg-black/10 ${colors.textMuted} hover:text-emerald-500 transition`} 
-    title="Salin">
-    <Icons.Copy />
-  </button>
-
-  {/* Tombol Reply */}
-  <button 
-    onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setEditingMsg(null); setActiveMsgId(null); }} 
-    className={`p-1.5 rounded-full bg-black/5 hover:bg-black/10 ${colors.textMuted} hover:text-indigo-500 transition`} 
-    title="Balas">
-    <Icons.Reply />
-  </button>
-
-  {/* Tombol Edit (Hanya muncul jika pesan milik sendiri) */}
-  {msg.sender_id === myProfile.chat_id && (
-    <button 
-      onClick={(e) => { e.stopPropagation(); setEditingMsg(msg); setInputMessage(msg.content); setReplyingTo(null); setActiveMsgId(null); }} 
-      className={`p-1.5 rounded-full bg-black/5 hover:bg-black/10 ${colors.textMuted} hover:text-amber-500 transition`} 
-      title="Edit">
-      <Icons.Edit />
-    </button>
-  )}
-</div>
                   </div>
                 </div>
-<<<<<<< HEAD
-              </Fragment>
-            )
-          })}
-          <div ref={messagesEndRef} className="h-4" />
-        </div>
-=======
               </div>
             ))}
 
             <div ref={messagesEndRef} className="h-6" />
           </div>
         </div>
-        
 
         {!isAtBottom && unreadCount > 0 && (
           <button 
@@ -1457,49 +1016,19 @@ const chatContainerRef = useRef(null);
             </svg>
           </button>
         )}
->>>>>>> 390626b (Update semua file ke versi terbaru)
       </div>
 
-      
-
       {/* Area Input Chat */}
-<<<<<<< HEAD
-      {/* Area Input Chat */}
-      <div 
-        className={`p-3 flex flex-col gap-2 ${colors.panel} border-t ${colors.border} shrink-0`}
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-      >
-        {editingMsg && (
-          <div className="flex justify-between items-center bg-amber-500/10 rounded-xl p-2.5 mx-1 border border-amber-500/20">
-            <div className="border-l-2 border-amber-500 pl-3 flex-1 overflow-hidden">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 mb-0.5">Mengedit Pesan</p>
-              <p className={`text-xs truncate ${colors.textMuted}`}>{editingMsg.content}</p>
-            </div>
-            <button onClick={() => { setEditingMsg(null); setInputMessage(''); }} className={`p-2 rounded-full hover:bg-black/10 ${colors.textMuted}`}>
-              <Icons.Plus className="rotate-45" />
-            </button>
-          </div>
-        )}
-        {replyingTo && (
-          <div className="flex justify-between items-center bg-black/5 rounded-xl p-2.5 mx-1">
-            <div className="border-l-2 border-indigo-500 pl-3 flex-1 overflow-hidden">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Membalas {replyingTo.sender_id === myProfile.chat_id ? 'Diri Sendiri' : replyingTo.sender_id}</p>
-              <p className={`text-xs truncate ${colors.textMuted}`}>{replyingTo.content || 'Berkas Terlampir'}</p>
-=======
       <div className={`p-3 md:p-4 flex flex-col gap-2 md:gap-3 ${colors.panel} border-t-[3px] md:border-t-[4px] border-black shrink-0 z-20`} style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         {editingMsg && (
           <div className="flex justify-between items-center bg-[#ffde59] border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] rounded-xl md:rounded-2xl p-2 md:p-3 mx-1 md:mx-2 mb-1 md:mb-2">
             <div className="pl-1 md:pl-2 flex-1 overflow-hidden text-black">
               <p className="text-[10px] md:text-xs font-black uppercase tracking-wider mb-0.5 md:mb-1">MENGEDIT PESAN ✏️</p>
               <p className={`text-xs md:text-sm font-bold truncate`}>{editingMsg.content}</p>
->>>>>>> 390626b (Update semua file ke versi terbaru)
             </div>
-            <button 
-  onClick={() => { setEditingMsg(null); setInputMessage(''); }} 
-  className="p-1 rounded-full bg-white border-2 border-black hover:bg-red-100 transition"
->
-  <Icons.Plus className="rotate-45 text-black" strokeWidth={4} />
-</button>
+            <button onClick={() => { setEditingMsg(null); setInputMessage(''); }} className="p-1 rounded-full bg-white border-2 border-black hover:bg-red-100 transition">
+              <Icons.Plus className="rotate-45 text-black" strokeWidth={4} />
+            </button>
           </div>
         )}
         {replyingTo && (
@@ -1508,7 +1037,9 @@ const chatContainerRef = useRef(null);
               <p className="text-[10px] md:text-xs font-black uppercase tracking-wider mb-0.5 md:mb-1">MEMBALAS {replyingTo.sender_id === myProfile.chat_id ? 'DIRI SENDIRI 😂' : replyingTo.sender_id}</p>
               <p className={`text-xs md:text-sm font-bold truncate`}>{replyingTo.content || 'Berkas Terlampir 📎'}</p>
             </div>
-            <button onClick={() => setReplyingTo(null)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl border-2 border-black bg-white hover:-translate-y-1 hover:shadow-[2px_2px_0_0_#000] transition-all`}><Icons.Plus className="rotate-45" /></button>
+            <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full bg-white border-2 border-black hover:bg-red-100 transition">
+              <Icons.Plus className="rotate-45 text-black" strokeWidth={4} />
+            </button>
           </div>
         )}
 
@@ -1542,8 +1073,6 @@ const chatContainerRef = useRef(null);
             <Icons.Send />
           </button>
         </form>
-
-        
       </div>
 
       {previewMedia && (
