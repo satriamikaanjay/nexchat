@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nexchat</string>
+    <string name="title_activity_main">Nexchat</string>
+    <string name="package_name">com.satria.nexchat</string>
+    <string name="custom_url_scheme">com.satria.nexchat</string>
+</resources>

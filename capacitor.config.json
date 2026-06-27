@@ -1,0 +1,10 @@
+{
+  "appId": "com.satria.nexchat",
+  "appName": "NexChat",
+  "webDir": "dist",
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}

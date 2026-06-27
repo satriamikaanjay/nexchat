@@ -96,39 +96,45 @@ export default function Auth({ onLoginSuccess }) {
   }
 
   return (
-    <div className="flex items-center justify-center h-screen bg-slate-900 text-white font-sans">
-      <div className="bg-slate-800 p-8 rounded-2xl shadow-xl w-96 border border-slate-700">
-        <h2 className="text-2xl font-bold text-center mb-6 text-emerald-400">
-          {isLoginView ? 'Masuk ke Chat' : 'Buat Akun Baru'}
-        </h2>
-        
-        {errorMsg && <p className="bg-red-500/20 text-red-400 p-2 rounded mb-4 text-sm text-center">{errorMsg}</p>}
+  <div className="flex items-center justify-center h-screen bg-slate-200 p-4 font-sans">
+    {/* Box Utama dengan Hard Shadow */}
+    <div className="bg-white p-8 rounded-[2rem] border-[4px] border-black shadow-[8px_8px_0_0_#000] w-full max-w-sm">
+      <h2 className="text-3xl font-black text-center mb-6 text-black uppercase tracking-tight">
+        {isLoginView ? 'MASUK' : 'DAFTAR'}
+      </h2>
+      
+      {errorMsg && (
+        <div className="bg-red-400 border-[3px] border-black text-black p-3 rounded-xl mb-4 font-bold text-sm text-center shadow-[4px_4px_0_0_#000]">
+          {errorMsg}
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="text-xs text-slate-400 mb-1 block">Username</label>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="contoh_username"
-              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-emerald-500 text-sm"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div>
+          <label className="text-xs font-black text-black mb-1 block uppercase">Username</label>
+          <input
+            type="text"
+            required
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="contoh_username"
+            className="w-full p-4 rounded-xl border-[3px] border-black font-bold text-base bg-gray-50 focus:outline-none focus:translate-y-[-2px] transition-all"
+          />
+        </div>
 
-          <div>
-            <label className="text-xs text-slate-400 mb-1 block">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimal 6 karakter"
-              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-emerald-500 text-sm"
-            />
-          </div>
+        <div>
+          <label className="text-xs font-black text-black mb-1 block uppercase">Password</label>
+          <input
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            className="w-full p-4 rounded-xl border-[3px] border-black font-bold text-base bg-gray-50 focus:outline-none focus:translate-y-[-2px] transition-all"
+          />
+        </div>
 
+<<<<<<< HEAD
           {/* hCaptcha sekarang muncul di kedua mode */}
           <div className="flex justify-center mt-2">
             <HCaptcha
@@ -138,27 +144,42 @@ export default function Auth({ onLoginSuccess }) {
               theme="dark"
             />
           </div>
+=======
+        <div className="flex justify-center my-2 border-[3px] border-black rounded-xl p-2 bg-gray-50">
+          <HCaptcha
+            ref={captchaRef}
+            sitekey="10000000-ffff-ffff-ffff-000000000001"
+            onVerify={(token) => setCaptchaToken(token)}
+            theme="light"
+          />
+        </div>
+>>>>>>> 390626b (Update semua file ke versi terbaru)
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 p-3 rounded-xl font-bold transition mt-2 disabled:opacity-50"
-          >
-            {loading ? 'Memproses...' : (isLoginView ? 'Login' : 'Daftar')}
-          </button>
-        </form>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-[#38b6ff] border-[3px] border-black p-4 rounded-xl font-black text-lg text-white shadow-[4px_4px_0_0_#000] active:shadow-none active:translate-y-[4px] transition-all disabled:opacity-50"
+        >
+          {loading ? 'MEMPROSES...' : (isLoginView ? 'LOGIN' : 'DAFTAR')}
+        </button>
+      </form>
 
-        <p className="text-center text-sm text-slate-400 mt-6">
-          {isLoginView ? "Belum punya akun? " : "Sudah punya akun? "}
-          <button 
-            type="button"
-            onClick={switchView}
-            className="text-emerald-400 hover:underline font-bold"
-          >
-            {isLoginView ? "Daftar di sini" : "Login di sini"}
-          </button>
-        </p>
-      </div>
+      <p className="text-center text-sm font-bold text-black mt-6">
+        {isLoginView ? "Belum punya akun? " : "Sudah punya akun? "}
+        <button 
+          type="button"
+          onClick={switchView}
+          className="text-[#ff5c5c] hover:underline font-black uppercase"
+        >
+          {isLoginView ? "Daftar" : "Login"}
+        </button>
+      </p>
     </div>
+<<<<<<< HEAD
   )
 }
+=======
+  </div>
+)
+}
+>>>>>>> 390626b (Update semua file ke versi terbaru)
