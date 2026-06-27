@@ -919,11 +919,12 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
                         <div className="px-2.5 pt-1.5 pb-1.5 md:px-3 md:pt-2 md:pb-2 flex flex-col gap-1.5 md:gap-2 min-w-[100px] md:min-w-[120px] max-w-full overflow-hidden z-10">
     
                           {repliedMsg && (
-                            <div className={`p-2 md:p-3 rounded-lg md:rounded-xl border-[2px] border-black text-xs md:text-sm font-bold overflow-hidden flex flex-col min-w-0 bg-white/50 shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)]`}>
-                              <p className="font-black mb-0.5 md:mb-1 truncate text-[#ff5757] uppercase">{repliedMsg.sender_id === myProfile.chat_id ? 'AKU' : repliedMsg.sender_id}</p>
-                              <p className="line-clamp-2 break-all whitespace-normal">{repliedMsg.content || 'Berkas Terlampir 📎'}</p>
-                            </div>
-                          )}
+  <div className={`p-2 md:p-3 rounded-lg md:rounded-xl border-[2px] border-black text-xs md:text-sm font-bold overflow-hidden flex flex-col min-w-0 bg-white/50 shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)]`}>
+    <p className="font-black mb-0.5 md:mb-1 text-[#ff5757] uppercase">{repliedMsg.sender_id === myProfile.chat_id ? 'AKU' : repliedMsg.sender_id}</p>
+    {/* Hapus class 'truncate' agar teks panjang tidak terpotong */}
+    <p className="break-words whitespace-normal">{repliedMsg.content || 'Berkas Terlampir 📎'}</p>
+  </div>
+)}
 
                           {msg.media_files && msg.media_files.length > 0 && (
                             <div className={`grid gap-2 ${msg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} mt-1`}>
@@ -954,7 +955,9 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
                           )}
 
                           <div className="flex items-end gap-3 md:gap-4 justify-between mt-1">
-                            <p className="text-sm md:text-[16px] font-bold break-words break-all whitespace-pre-wrap leading-relaxed max-w-full px-1">{msg.content}</p>
+                            <p className="text-sm md:text-[16px] font-bold break-words whitespace-pre-wrap leading-relaxed max-w-full px-1">
+  {msg.content}
+</p>
                             <div className={`flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-black whitespace-nowrap float-right shrink-0 opacity-80 pt-1 md:pt-2`}>
                               <span>{timeString}</span>
                               {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
@@ -979,7 +982,10 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
             {pendingMessages.map((msg) => (
               <div key={msg.id} className="flex flex-col max-w-[85%] md:max-w-[75%] ml-auto items-end opacity-70 group animate-pulse">
                 <div className={`relative flex items-end gap-2 md:gap-3 flex-row-reverse`}>
-                  <div className={`p-1.5 relative flex flex-col ${colors.bubbleMe}`}>
+                  <div className={`p-1.5 relative flex flex-col transition-all duration-200 cursor-pointer 
+  min-w-[120px] md:min-w-[150px] // Tambahkan ini agar bubble tidak terlalu kurus
+  max-w-[85%] md:max-w-[75%] 
+  ${isMe ? colors.bubbleMe : colors.bubbleThem}`}>
                     <div className="absolute bottom-2 -right-2 border-l-[10px] md:border-l-[12px] border-l-[#38b6ff] border-t-[10px] md:border-t-[12px] border-t-transparent border-b-[10px] md:border-b-[12px] border-b-transparent" style={{ filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}></div>
                     <div className="px-2.5 pt-1.5 pb-1.5 md:px-3 md:pt-2 md:pb-2 flex flex-col gap-1.5 md:gap-2 min-w-[100px] md:min-w-[120px] max-w-full overflow-hidden z-10">
                       {msg.reply_to_id && (
