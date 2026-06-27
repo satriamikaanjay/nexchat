@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import { supabase } from './supabaseClient'
-import Auth from './Auth'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
 
 export default function Auth({ onLoginSuccess }) {
