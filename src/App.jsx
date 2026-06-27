@@ -920,7 +920,7 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
     
                           {repliedMsg && (
   <div className={`p-2 md:p-3 rounded-lg md:rounded-xl border-[2px] border-black text-xs md:text-sm font-bold overflow-hidden flex flex-col min-w-0 bg-white/50 shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)]`}>
-    <p className="font-black mb-0.5 md:mb-1 text-[#ff5757] uppercase">{repliedMsg.sender_id === myProfile.chat_id ? 'AKU' : repliedMsg.sender_id}</p>
+    <p className="font-black mb-0.5 md:mb-1  text-[#ff5757] uppercase">{repliedMsg.sender_id === myProfile.chat_id ? 'AKU' : repliedMsg.sender_id}</p>
     {/* Hapus class 'truncate' agar teks panjang tidak terpotong */}
     <p className="break-words whitespace-normal">{repliedMsg.content || 'Berkas Terlampir 📎'}</p>
   </div>
@@ -954,15 +954,15 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
                             </div>
                           )}
 
-                          <div className="flex items-end gap-3 md:gap-4 justify-between mt-1">
-                            <p className="text-sm md:text-[16px] font-bold break-words whitespace-pre-wrap leading-relaxed max-w-full px-1">
-  {msg.content}
-</p>
-                            <div className={`flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-black whitespace-nowrap float-right shrink-0 opacity-80 pt-1 md:pt-2`}>
-                              <span>{timeString}</span>
-                              {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
-                            </div>
-                          </div>
+                          <div className="flex flex-col gap-1 mt-1 w-full">
+  <p className="text-sm md:text-[16px] font-bold break-words whitespace-pre-wrap leading-relaxed max-w-full px-1">
+    {msg.content}
+  </p>
+  <div className={`flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-black self-end opacity-80 pt-1`}>
+    <span>{timeString}</span>
+    {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
+  </div>
+</div>
                         </div>
                       </div>
                       
