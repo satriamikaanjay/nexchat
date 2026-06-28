@@ -42,7 +42,8 @@ export default function Auth({ onLoginSuccess }) {
         onLoginSuccess(data.user)
       }
     } else {
-      const generatedChatId = 'id-' + crypto.randomUUID().substring(0, 8)
+      const randomStr = Math.random().toString(36).substring(2, 10)
+const generatedChatId = 'id-' + randomStr
       
       const { data, error } = await supabase.auth.signUp({
         email: fakeEmail,

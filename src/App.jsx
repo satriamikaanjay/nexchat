@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, Fragment } from 'react'
 import { supabase } from './supabaseClient'
 import Auth from './Auth'
 import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
+import myIcon from '../public/favicon.svg';
 
 // ================= IKON SVG MINIMALIS =================
 const Icons = {
@@ -25,6 +27,11 @@ const Icons = {
   Share: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>,
   Edit: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
   Clock: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+  Info: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
+  Users: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  WhatsApp: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
+  Instagram: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>,
+  TikTok: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>,
 }
 
 const Avatar = ({ url, name, size = 'w-10 h-10', className = '' }) => (
@@ -124,11 +131,16 @@ function MainApp({ session, myProfile, setMyProfile }) {
   const [onlineUsers, setOnlineUsers] = useState([])
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false)
   
-  // State untuk Pencarian Teman
+  // State untuk Pencarian Teman via Modal
   const [isAddContactOpen, setIsAddContactOpen] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
+
+  // State untuk Pencarian Teman via Beranda (Home)
+  const [homeSearch, setHomeSearch] = useState('')
+  const [homeSearchResults, setHomeSearchResults] = useState([])
+  const [isHomeSearching, setIsHomeSearching] = useState(false)
   
   const [unknownProfiles, setUnknownProfiles] = useState({})
   const [blockedIds, setBlockedIds] = useState(() => {
@@ -155,8 +167,6 @@ function MainApp({ session, myProfile, setMyProfile }) {
   const colors = getTheme(themeName)
 
   const handleSwitchChat = (chat) => {
-    // isUploading perlu diakses dari komponen ChatRoom, namun untuk navigasi ini, 
-    // kita asumsikan jika ada aktivitas upload di tingkat global/chat
     setActiveChat(chat);
   }
 
@@ -164,49 +174,78 @@ function MainApp({ session, myProfile, setMyProfile }) {
   useEffect(() => { localStorage.setItem('blocked_ids', JSON.stringify(blockedIds)) }, [blockedIds])
   useEffect(() => { localStorage.setItem('hidden_ids', JSON.stringify(hiddenIds)) }, [hiddenIds])
 
+  // Effect Untuk Cari Teman via Modal
   useEffect(() => {
-  const timer = setTimeout(async () => {
-    if (!searchInput.trim()) {
-      setSearchResults([])
-      return
-    }
-    
-    setIsSearching(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .or(`chat_id.eq.${searchInput},username.ilike.%${searchInput}%`)
-      .neq('chat_id', myProfile.chat_id)
-      .limit(10)
-
-    if (data) {
-      setSearchResults(data)
-    }
-    setIsSearching(false)
-  }, 500) 
-
-  return () => clearTimeout(timer)
-}, [searchInput, myProfile.chat_id])
-
-  useEffect(() => {
-    const setupPushNotifications = async () => {
-      let permStatus = await PushNotifications.checkPermissions();
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions();
+    const timer = setTimeout(async () => {
+      if (!searchInput.trim()) {
+        setSearchResults([])
+        return
       }
-      if (permStatus.receive !== 'granted') return; 
+      setIsSearching(true)
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`chat_id.eq.${searchInput},username.ilike.%${searchInput}%`)
+        .neq('chat_id', myProfile.chat_id)
+        .limit(10)
 
-      await PushNotifications.register();
+      if (data) { setSearchResults(data) }
+      setIsSearching(false)
+    }, 500) 
+    return () => clearTimeout(timer)
+  }, [searchInput, myProfile.chat_id])
 
-      PushNotifications.addListener('registration', async (token) => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          await supabase.from('profiles').update({ fcm_token: token.value }).eq('id', session.user.id);
-        }
-      });
-    };
-    setupPushNotifications();
-  }, []);
+  // Effect Untuk Cari Teman via Beranda (Home Search)
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (!homeSearch.trim()) {
+        setHomeSearchResults([])
+        return
+      }
+      setIsHomeSearching(true)
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`chat_id.eq.${homeSearch},username.ilike.%${homeSearch}%`)
+        .neq('chat_id', myProfile.chat_id)
+        .limit(15)
+
+      if (data) setHomeSearchResults(data)
+      setIsHomeSearching(false)
+    }, 500) 
+    return () => clearTimeout(timer)
+  }, [homeSearch, myProfile.chat_id])
+
+  useEffect(() => {
+  const setupPushNotifications = async () => {
+    // TAMBAHKAN PENGECEKAN INI:
+    // Jika bukan di aplikasi HP (Android/iOS), hentikan fungsi di sini.
+    if (!Capacitor.isNativePlatform()) {
+      console.log("Push notifications diabaikan (hanya untuk mode native)");
+      return;
+    }
+
+    // Hanya jika di HP, kode di bawah ini akan dijalankan:
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    
+    let permStatus = await PushNotifications.checkPermissions();
+    if (permStatus.receive === 'prompt') {
+      permStatus = await PushNotifications.requestPermissions();
+    }
+    if (permStatus.receive !== 'granted') return; 
+
+    await PushNotifications.register();
+
+    PushNotifications.addListener('registration', async (token) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.from('profiles').update({ fcm_token: token.value }).eq('id', session.user.id);
+      }
+    });
+  };
+
+  setupPushNotifications();
+}, []);
 
 
   useEffect(() => {
@@ -215,6 +254,12 @@ function MainApp({ session, myProfile, setMyProfile }) {
       if (data) setGlobalMessages(data)
     }
     fetchGlobalMessages()
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') { fetchGlobalMessages(); }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); }
   }, [myProfile.chat_id])
 
   useEffect(() => {
@@ -372,39 +417,55 @@ function MainApp({ session, myProfile, setMyProfile }) {
         const newContact = { ...data, avatar_url: friendProfile.avatar_url };
         setContacts([newContact, ...contacts]); 
         setActiveChat({ ...newContact, type: 'personal' })
+      } else {
+        // Fallback langsung buka chat walau gagal simpan contact
+        setActiveChat({ contact_id: friendProfile.chat_id, contact_username: friendProfile.username, avatar_url: friendProfile.avatar_url, type: 'personal', cleared_at: '1970-01-01' })
       }
     }
     setIsAddContactOpen(false)
     setSearchInput('')
     setSearchResults([])
+    setHomeSearch('')
+    setActiveMenu('chat')
   }
+
+  const UpdateSection = () => (
+  <div className="mb-6 p-4 border-[3px] border-black rounded-[1.5rem] bg-yellow-100 shadow-[4px_4px_0_0_#000]">
+    <h3 className="font-black text-lg mb-1 underline">📢 Info Pembaruan v1.1</h3>
+    <p className="text-sm font-bold">- Memperbaiki bug pada ruang chat</p>
+    <p className="text-sm font-bold">- Tampilan diperbarui</p>
+    <p className="text-sm font-bold">- Memperbaiki fitur pencarian teman</p>
+    <p className="text-sm font-bold">- menambahkan beberapa fitur baru</p>
+  </div>
+);
 
  return (
     <div translate="no" className={`flex fixed inset-0 w-full font-sans overflow-hidden ${colors.base} ${colors.text}`}>
       
       {/* SIDEBAR */}
-      <div className={`flex flex-col h-full w-full md:w-[380px] border-r-0 md:border-r-[4px] ${colors.border} ${colors.panel} ${activeChat ? 'hidden md:flex' : 'flex'} shadow-none md:shadow-[8px_0_0_0_rgba(0,0,0,0.1)] z-10`}>
+      <div className={`flex flex-col h-full w-full md:w-[380px] border-r-0 md:border-r-[4px] ${colors.border} ${colors.panel} ${activeChat ? 'hidden md:flex' : 'flex'} shadow-none md:shadow-[8px_0_0_0_rgba(0,0,0,0.1)] z-10 relative`}>
         
+        {/* HEADER NAVBAR (Gaya WhatsApp) */}
         <div className={`flex items-center justify-between p-3 md:p-4 border-b-[3px] md:border-b-[4px] ${colors.border} h-[70px] md:h-[84px] shrink-0 bg-black/5`}>
-            <div className="flex items-center gap-2 overflow-hidden">
+            {/* Kiri: Avatar & Nama Web */}
+            <div className="flex items-center gap-3 overflow-hidden">
                 <Avatar url={myProfile.avatar_url} name={myProfile.username} size="w-10 h-10 md:w-12 md:h-12" />
-                <h1 className="font-black text-lg md:text-xl uppercase tracking-widest hidden sm:block truncate text-shadow-[2px_2px_0_0_#000]">NexChat!</h1>
+                <h1 className="font-black text-lg md:text-xl uppercase tracking-widest truncate text-shadow-[2px_2px_0_0_#000]">NexChat!</h1>
             </div>
-            <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                <button onClick={() => setActiveMenu('chat')} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] ${activeMenu === 'chat' ? colors.primary : `bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1`} transition-all`}><Icons.Chat /></button>
-                <button onClick={() => setActiveMenu('profile')} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] ${activeMenu === 'profile' ? colors.primary : `bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1`} transition-all`}><Icons.User /></button>
-                <div className="relative">
-                <button onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)} className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all`}><Icons.More /></button>
-                {isHeaderMenuOpen && (
-                    <div className={`absolute right-0 mt-3 w-40 md:w-48 ${colors.panel} border-[3px] md:border-[4px] border-black rounded-[1rem] md:rounded-[1.5rem] shadow-[4px_4px_0_0_#000] z-50 overflow-hidden`}>
-                    <button onClick={() => setActiveMenu('settings')} className="w-full text-left px-4 py-3 md:py-4 font-black text-sm md:text-base border-b-[2px] md:border-b-[3px] border-black hover:bg-black/10 transition-colors uppercase">Setelan ⚙️</button>
-                    <button onClick={() => openConfirm('KELUAR PINTU', 'Yakin mau keluar dari NexChat?', () => supabase.auth.signOut())} className="w-full text-left px-4 py-3 md:py-4 text-white bg-[#ff5757] text-sm md:text-base font-black hover:bg-[#ff3b3b] transition-colors uppercase">Keluar 🚪</button>
-                    </div>
-                )}
-                </div>
+            
+            {/* Kanan: Titik Tiga (Menu Profil & Setting) */}
+            <div className="flex items-center shrink-0">
+                <button 
+                  onClick={() => setActiveMenu('settings')} 
+                  className={`p-2 md:p-2.5 rounded-xl md:rounded-[1rem] bg-white text-black border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all`} 
+                  title="Pengaturan"
+                >
+                  <Icons.Settings />
+                </button>
             </div>
         </div>
 
+        {/* MODAL CARI TEMAN */}
         <Modal isOpen={isAddContactOpen} onClose={() => {setIsAddContactOpen(false); setSearchResults([]); setSearchInput('');}} title="CARI TEMAN 👾" colors={colors}>
           <form onSubmit={handleSearchContact} className="space-y-4">
             <div>
@@ -438,94 +499,151 @@ function MainApp({ session, myProfile, setMyProfile }) {
           </div>
         </Modal>
 
-        <div className="flex-1 overflow-y-auto" onClick={() => setIsHeaderMenuOpen(false)}>
-          {activeMenu === 'profile' && <ProfileModule session={session} myProfile={myProfile} setMyProfile={setMyProfile} t={t} colors={colors} />}
+        {/* ISI KONTEN TENGAH */}
+        <div className="flex-1 overflow-y-auto relative" onClick={() => setIsHeaderMenuOpen(false)}>
+          
+          {/* Tampilan Setelan (Profile) */}
           {activeMenu === 'settings' && (
-            <div className="p-4 md:p-6">
-              <h2 className="text-xl md:text-2xl font-black mb-4 md:mb-6 uppercase tracking-wider border-b-[3px] md:border-b-[4px] border-black pb-3 md:pb-4">{t.settings}</h2>
-              <div className="space-y-4 md:space-y-5">
-                <div>
-                  <label className={`block text-xs md:text-sm font-black mb-2 uppercase ${colors.text}`}>{t.theme}</label>
-                  <select value={themeName} onChange={(e) => setThemeName(e.target.value)} className={`w-full p-3 md:p-4 text-sm md:text-base text-black font-bold rounded-xl md:rounded-2xl bg-white border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] focus:outline-none appearance-none cursor-pointer`}>
-                    <option value="light">{t.light}</option><option value="dark">{t.dark}</option>
+            <ProfileModule 
+              session={session} 
+              myProfile={myProfile} 
+              setMyProfile={setMyProfile} 
+              t={t} 
+              colors={colors} 
+              setActiveMenu={setActiveMenu} 
+              openConfirm={openConfirm} 
+            />
+          )}
+
+          {/* TAMPILAN ATUR TEMA (Halaman Baru dari Pengaturan) */}
+          {activeMenu === 'theme' && (
+            <div className="p-4 md:p-6 bg-gradient-to-b from-transparent to-black/5 min-h-full">
+              <div className="flex items-center gap-3 mb-6 border-b-[3px] md:border-b-[4px] border-black pb-4">
+                <button onClick={() => setActiveMenu('settings')} className="p-2 bg-white rounded-xl border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all"><Icons.ArrowLeft /></button>
+                <h2 className="text-xl md:text-2xl font-black uppercase tracking-wider">Atur Tema 🎨</h2>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-white p-4 md:p-6 rounded-2xl border-[3px] md:border-[4px] border-black shadow-[4px_4px_0_0_#000]">
+                  <label className="block text-xs md:text-sm font-black mb-3 uppercase text-black">Pilih Tema Visual</label>
+                  <select value={themeName} onChange={(e) => setThemeName(e.target.value)} className="w-full p-3 md:p-4 text-sm md:text-base text-black font-bold rounded-xl md:rounded-2xl bg-gray-50 border-[2px] md:border-[3px] border-black shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)] focus:outline-none appearance-none cursor-pointer">
+                    <option value="light">Mode Siang ☀️</option>
+                    <option value="dark">Mode Malam 🌙</option>
                   </select>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Tampilan Daftar Chat (Beranda) */}
           {activeMenu === 'chat' && (
-            <div className="flex flex-col h-full relative">
+            <div className="flex flex-col min-h-full">
               <div className={`p-3 md:p-4 border-b-[3px] md:border-b-[4px] ${colors.border} flex gap-2 shrink-0 bg-black/5`}>
                 <div className={`flex-1 flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-white border-[2px] md:border-[3px] border-black shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)] md:shadow-[inset_3px_3px_0_0_rgba(0,0,0,0.1)] text-black focus-within:shadow-[inset_0_-3px_0_0_rgba(0,0,0,0.2)] transition-all`}>
                   <Icons.Search />
-                  <input type="text" placeholder="CARI TEMAN..." className="bg-transparent border-none outline-none w-full text-sm md:text-base font-bold placeholder-gray-500 uppercase" />
+                  <input type="text" value={homeSearch} onChange={(e) => setHomeSearch(e.target.value)} placeholder="CARI TEMAN..." className="bg-transparent border-none outline-none w-full text-sm md:text-base font-bold placeholder-gray-500 uppercase" />
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {contacts.length === 0 && unknownContacts.length === 0 ? (
-                   <div className={`p-6 md:p-10 text-center font-black uppercase text-lg md:text-xl mt-6 md:mt-10 opacity-50`}>SEPI BANGET... 🌵</div>
-                ) : (
-                  <>
-                    {unknownContacts.map(c => {
-                      const isOnline = onlineUsers.includes(c.contact_id);
-                      const unreadCount = globalMessages.filter(m => m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read).length;
+              <div className="flex-1 p-3 space-y-3 pb-24">
+                {homeSearch.trim() ? (
+                  // ================= HASIL CARI TEMAN DI BERANDA =================
+                  <div className="space-y-3">
+                    {isHomeSearching ? (
+                      <p className="text-center font-bold text-xs uppercase opacity-70 mt-4">Mencari...</p>
+                    ) : homeSearchResults.length === 0 ? (
+                      <p className="text-center font-bold text-xs uppercase opacity-70 mt-4">Pencarian Tidak Ditemukan.</p>
+                    ) : (
+                      homeSearchResults.map(user => {
+                        const isSaved = contacts.some(c => c.contact_id === user.chat_id);
+                        const isChatted = unknownContactIds.includes(user.chat_id);
+                        const isNew = !isSaved && !isChatted;
 
-                      return (
-                        <div key={c.id} onClick={() => handleSwitchChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-gray-100 text-black'}`}>
-                          <div className="relative">
-                            <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12 md:w-14 md:h-14" />
-                            {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 md:w-4 md:h-4 bg-[#00e676] border-[2px] border-black rounded-full shadow-[1px_1px_0_0_#000]"></span>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`text-base md:text-lg truncate uppercase ${unreadCount > 0 ? 'font-black' : 'font-bold'}`}>
-                              {c.contact_id}
-                              {unreadCount > 0 && <span className="text-[9px] md:text-[10px] font-black bg-[#ff5757] text-white border-[2px] border-black px-2 py-0.5 rounded-full ml-2 shadow-[2px_2px_0_0_#000] uppercase">BARU</span>}
-                            </h3>
-                            {unreadCount > 0 ? (
-                              <p className="text-[10px] md:text-xs font-black text-[#ff5757] mt-1 bg-red-100 inline-block px-2 py-0.5 rounded-full border border-black uppercase">Pesan Baru!</p>
-                            ) : (
-                              <p className={`text-xs md:text-sm font-bold truncate mt-1 text-gray-500`}>Siapa nih? 🤔</p>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-
-                    {contacts.map(c => {
-                      const isOnline = onlineUsers.includes(c.contact_id);
-                      const clearedAtTime = new Date(c.cleared_at || '1970-01-01').getTime();
-                      const unreadCount = globalMessages.filter(m => {
-                        const isNotCleared = new Date(m.created_at).getTime() > clearedAtTime;
-                        return isNotCleared && m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read;
-                      }).length;
-
-                      return (
-                        <div key={c.id} onClick={() => handleSwitchChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-white text-black'}`}>
-                          <div className="relative">
-                            <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12 md:w-14 md:h-14" />
-                            {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 md:w-4 md:h-4 bg-[#00e676] border-[2px] border-black rounded-full shadow-[1px_1px_0_0_#000]"></span>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`text-base md:text-lg truncate uppercase ${unreadCount > 0 ? 'font-black' : 'font-bold'}`}>{c.contact_username}</h3>
-                            {unreadCount > 0 ? (
-                              <p className="text-[10px] md:text-xs font-black text-[#ff5757] mt-1 bg-red-100 inline-block px-2 py-0.5 rounded-full border border-black uppercase">Pesan Baru!</p>
-                            ) : (
-                              <p className={`text-xs md:text-sm font-bold truncate mt-1 text-gray-500 font-mono`}>ID: {c.contact_id}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {unreadCount > 0 && (
-                              <div className="bg-[#ff5757] text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded-full border-[2px] border-black shadow-[2px_2px_0_0_#000]">{unreadCount}</div>
-                            )}
-                            <button onClick={(e) => handleDeleteContact(e, c.contact_id)} className={`p-2 md:p-2.5 rounded-xl opacity-100 md:opacity-0 md:group-hover:opacity-100 bg-[#ff5757] text-white border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] transition-all`} title="Hapus">
-                              <Icons.Trash />
+                        return (
+                          <div key={user.chat_id} onClick={() => startChatWithUser(user)} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 bg-white text-black`}>
+                            <div className="relative">
+                              <Avatar url={user.avatar_url} name={user.username} size="w-12 h-12 md:w-14 md:h-14" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base md:text-lg truncate uppercase font-bold">
+                                {user.username}
+                                {isNew && <span className="text-[9px] md:text-[10px] font-black bg-[#00e676] text-black border-[2px] border-black px-2 py-0.5 rounded-full ml-2 shadow-[2px_2px_0_0_#000] uppercase">BARU</span>}
+                              </h3>
+                              <p className={`text-xs md:text-sm font-bold truncate mt-1 text-gray-500 font-mono`}>ID: {user.chat_id}</p>
+                            </div>
+                            <button className="p-2 md:p-2.5 bg-[#38b6ff] text-black border-2 md:border-[3px] border-black rounded-lg md:rounded-xl shadow-[2px_2px_0_0_#000] md:shadow-[3px_3px_0_0_#000] hover:-translate-y-1 transition-all flex items-center shrink-0">
+                              <Icons.Chat />
                             </button>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </>
+                        )
+                      })
+                    )}
+                  </div>
+                ) : (
+                  // ================= DAFTAR CHAT NORMAL =================
+                  contacts.length === 0 && unknownContacts.length === 0 ? (
+                    <div className={`p-6 md:p-10 text-center font-black uppercase text-lg md:text-xl mt-6 md:mt-10 opacity-50`}>SEPI BANGET... 🌵</div>
+                  ) : (
+                    <>
+                      {unknownContacts.map(c => {
+                        const isOnline = onlineUsers.includes(c.contact_id);
+                        const unreadCount = globalMessages.filter(m => m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read).length;
+
+                        return (
+                          <div key={c.id} onClick={() => handleSwitchChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-gray-100 text-black'}`}>
+                            <div className="relative">
+                              <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12 md:w-14 md:h-14" />
+                              {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 md:w-4 md:h-4 bg-[#00e676] border-[2px] border-black rounded-full shadow-[1px_1px_0_0_#000]"></span>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className={`text-base md:text-lg truncate uppercase ${unreadCount > 0 ? 'font-black' : 'font-bold'}`}>
+                                {c.contact_id}
+                                {unreadCount > 0 && <span className="text-[9px] md:text-[10px] font-black bg-[#ff5757] text-white border-[2px] border-black px-2 py-0.5 rounded-full ml-2 shadow-[2px_2px_0_0_#000] uppercase">BARU</span>}
+                              </h3>
+                              {unreadCount > 0 ? (
+                                <p className="text-[10px] md:text-xs font-black text-[#ff5757] mt-1 bg-red-100 inline-block px-2 py-0.5 rounded-full border border-black uppercase">Pesan Baru!</p>
+                              ) : (
+                                <p className={`text-xs md:text-sm font-bold truncate mt-1 text-gray-500`}>Siapa nih? 🤔</p>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {contacts.map(c => {
+                        const isOnline = onlineUsers.includes(c.contact_id);
+                        const clearedAtTime = new Date(c.cleared_at || '1970-01-01').getTime();
+                        const unreadCount = globalMessages.filter(m => {
+                          const isNotCleared = new Date(m.created_at).getTime() > clearedAtTime;
+                          return isNotCleared && m.sender_id === c.contact_id && m.receiver_id === myProfile.chat_id && !m.is_read;
+                        }).length;
+
+                        return (
+                          <div key={c.id} onClick={() => handleSwitchChat({...c, type: 'personal'})} className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] cursor-pointer flex items-center gap-3 md:gap-4 transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] group ${activeChat?.contact_id === c.contact_id ? 'bg-[#ffde59] text-black scale-[1.02]' : 'bg-white text-black'}`}>
+                            <div className="relative">
+                              <Avatar url={c.avatar_url} name={c.contact_username} size="w-12 h-12 md:w-14 md:h-14" />
+                              {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 md:w-4 md:h-4 bg-[#00e676] border-[2px] border-black rounded-full shadow-[1px_1px_0_0_#000]"></span>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className={`text-base md:text-lg truncate uppercase ${unreadCount > 0 ? 'font-black' : 'font-bold'}`}>{c.contact_username}</h3>
+                              {unreadCount > 0 ? (
+                                <p className="text-[10px] md:text-xs font-black text-[#ff5757] mt-1 bg-red-100 inline-block px-2 py-0.5 rounded-full border border-black uppercase">Pesan Baru!</p>
+                              ) : (
+                                <p className={`text-xs md:text-sm font-bold truncate mt-1 text-gray-500 font-mono`}>ID: {c.contact_id}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {unreadCount > 0 && (
+                                <div className="bg-[#ff5757] text-white text-xs md:text-sm font-black w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded-full border-[2px] border-black shadow-[2px_2px_0_0_#000]">{unreadCount}</div>
+                              )}
+                              <button onClick={(e) => handleDeleteContact(e, c.contact_id)} className={`p-2 md:p-2.5 rounded-xl opacity-100 md:opacity-0 md:group-hover:opacity-100 bg-[#ff5757] text-white border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] transition-all`} title="Hapus">
+                                <Icons.Trash />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </>
+                  )
                 )}
               </div>
               <div className="absolute bottom-5 right-5 md:bottom-6 md:right-6 flex flex-col gap-4">
@@ -533,6 +651,97 @@ function MainApp({ session, myProfile, setMyProfile }) {
               </div>
             </div>
           )}
+
+          
+
+          {/* HALAMAN ABOUT & LAPOR BUG */}
+          {activeMenu === 'about' && (
+            <div className="p-4 md:p-6 space-y-6 bg-gradient-to-b from-transparent to-black/5 min-h-full pb-10">
+              <div className="flex flex-col items-center mt-2">
+                <div className={`w-20 h-20 md:w-24 md:h-24 mb-4 rounded-[1.5rem] bg-white border-[3px] md:border-[4px] border-black shadow-[4px_4px_0_0_#000] flex items-center justify-center text-black rotate-[-5deg] hover:rotate-[5deg] transition-transform`}>
+                  <img src={myIcon} alt="Icon" className="w-20 h-20" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black uppercase text-shadow-[2px_2px_0_0_#000]">NexChat!</h2>
+                <p className="font-bold text-sm bg-white border-[2px] border-black inline-block px-3 py-1 rounded-full shadow-[2px_2px_0_0_#000] mt-2">Versi 1.1 🚀</p>
+              </div>
+              
+              <div className="bg-white border-[3px] border-black rounded-2xl p-4 shadow-[4px_4px_0_0_#000]">
+                <h3 className="font-black text-lg border-b-[2px] border-black pb-2 mb-2 uppercase text-[#38b6ff] text-shadow-[1px_1px_0_0_#000]">Deskripsi</h3>
+                <p className="text-sm font-bold leading-relaxed text-black">NexChat adalah aplikasi chatting asik bergaya visual Neobrutalism. Dibangun untuk ngobrol tanpa batas, aman, dan super cepat!</p>
+              </div>
+
+              <div className="bg-white border-[3px] border-black rounded-2xl p-4 shadow-[4px_4px_0_0_#000]">
+                <h3 className="font-black text-lg border-b-[2px] border-black pb-2 mb-2 uppercase text-[#ffde59] text-shadow-[1px_1px_0_0_#000]">Info Developer</h3>
+                <p className="text-sm font-bold leading-relaxed mb-3 text-black">Dikembangkan dengan ❤️ oleh <span className="text-[#ff5757] uppercase tracking-wider">Satria Mika Narendra</span>.</p>
+                <div className="flex gap-2">
+                  <a href="https://www.instagram.com/satriamika_/" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-[#d83f87] text-white rounded-xl border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 active:translate-y-0 transition-all font-black text-xs uppercase"><Icons.User /> Instagram</a>
+                  <a href="https://github.com/satriamikaanjay" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-gray-800 text-white rounded-xl border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 active:translate-y-0 transition-all font-black text-xs uppercase"><Icons.File /> GitHub</a>
+                </div>
+              </div>
+
+              <UpdateSection />
+
+              {/* SECTION LAPOR BUG MODIFIKASI */}
+              <div className="bg-white border-[3px] border-black rounded-2xl p-4 shadow-[4px_4px_0_0_#000]">
+                <h3 className="font-black text-lg border-b-[2px] border-black pb-2 mb-3 uppercase text-[#ff5757] text-shadow-[1px_1px_0_0_#000]">Lapor Bug 🐛</h3>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const msg = e.target.bugMsg.value;
+                  const devId = "id-x08fjoba"; // <<-- GANTI DENGAN ID CHAT MILIKMU (sebagai developer)
+                  
+                  // Mengirim pesan template
+                  await supabase.from('messages').insert([{
+                    sender_id: myProfile.chat_id,
+                    receiver_id: devId,
+                    content: `[LAPORAN BUG]\n\n${msg}`,
+                    is_read: false
+                  }]);
+
+                  // Dapatkan profil developer lalu redirect ke ruang chat
+                  const { data: devProfile } = await supabase.from('profiles').select('*').eq('chat_id', devId).single();
+                  if (devProfile) {
+                    startChatWithUser(devProfile); // Pindah ke menu chat otomatis
+                  } else {
+                    // Fallback jika belum pernah ada kontak Dev
+                    startChatWithUser({ chat_id: devId, username: "Developer NexChat" });
+                  }
+                  e.target.reset();
+                }} className="flex flex-col gap-3">
+                  <textarea name="bugMsg" rows="3" required placeholder="Ceritain bug yang kamu temuin..." className="w-full p-3 rounded-xl border-[2px] border-black bg-gray-50 focus:outline-none focus:shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)] text-sm font-bold text-black resize-none"></textarea>
+                  <button type="submit" className="w-full bg-[#00e676] text-black font-black uppercase py-2.5 rounded-xl border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-2">
+                    Kirim via NexChat <Icons.Send />
+                  </button>
+                </form>
+
+                {/* Tautan Sosial Media */}
+                <p className="text-[10px] md:text-xs font-bold text-center mt-4 uppercase">kalian bisa juga laporkan lewat</p>
+                <div className="flex justify-center gap-3 mt-2">
+                  <a href="https://wa.me/62895327503576" target="_blank" rel="noreferrer" className="p-2.5 bg-[#25D366] text-white rounded-xl border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all"><Icons.WhatsApp /></a>
+                  <a href="https://www.instagram.com/satriamika_/" target="_blank" rel="noreferrer" className="p-2.5 bg-[#E1306C] text-white rounded-xl border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all"><Icons.Instagram /></a>
+                  <a href="https://www.tiktok.com/@satria_fullstack_webdev" target="_blank" rel="noreferrer" className="p-2.5 bg-black text-white rounded-xl border-[2px] border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all"><Icons.TikTok /></a>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* BOTTOM NAVIGATION (Gaya Telegram) */}
+        <div className={`flex items-center justify-around px-2 border-t-[3px] md:border-t-[4px] ${colors.border} bg-white h-[70px] md:h-[80px] shrink-0 z-20`} style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}>
+            <button onClick={() => setActiveMenu('chat')} className={`flex flex-col items-center justify-center w-[75px] h-[55px] rounded-xl border-[2px] border-transparent ${activeMenu === 'chat' ? 'bg-[#38b6ff] text-black border-black shadow-[3px_3px_0_0_#000]' : 'text-gray-500 hover:text-black hover:bg-gray-100'} transition-all`}>
+                <Icons.Chat />
+                <span className="text-[10px] font-black uppercase mt-1">Chat</span>
+            </button>
+            
+            <button onClick={() => alert('Fitur Grup akan segera datang! 🚀')} className={`flex flex-col items-center justify-center w-[75px] h-[55px] rounded-xl border-[2px] border-transparent text-gray-400 cursor-not-allowed transition-all relative group`}>
+                <Icons.Users />
+                <span className="text-[10px] font-black uppercase mt-1">Grup</span>
+                <span className="absolute -top-3 bg-[#ff5757] text-white text-[8px] font-black px-1.5 py-0.5 rounded-full border border-black shadow-[1px_1px_0_0_#000] rotate-[5deg]">SOON</span>
+            </button>
+            
+            <button onClick={() => setActiveMenu('about')} className={`flex flex-col items-center justify-center w-[75px] h-[55px] rounded-xl border-[2px] border-transparent ${activeMenu === 'about' ? 'bg-[#ffde59] text-black border-black shadow-[3px_3px_0_0_#000]' : 'text-gray-500 hover:text-black hover:bg-gray-100'} transition-all`}>
+                <Icons.Info />
+                <span className="text-[10px] font-black uppercase mt-1">About</span>
+            </button>
         </div>
       </div>
 
@@ -556,6 +765,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
         )}
       </div>
 
+      {/* Pop Up Validasi */}
       <Modal isOpen={confirmDialog.isOpen} onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} title={confirmDialog.title} colors={colors}>
         <div className="p-2 md:p-4 text-center text-black">
           <p className="font-bold text-base md:text-lg">{confirmDialog.message}</p>
@@ -581,9 +791,11 @@ function MainApp({ session, myProfile, setMyProfile }) {
   )
 }
 
-function ProfileModule({ session, myProfile, setMyProfile, t, colors }) {
+function ProfileModule({ userProfile, session, myProfile, setMyProfile, t, colors, setActiveMenu, openConfirm }) {
   const [newUsername, setNewUsername] = useState(myProfile.username)
-  const [isSaving, setIsSaving] = useState(false); const [isUploading, setIsUploading] = useState(false); const fileInputRef = useRef(null)
+  const [isSaving, setIsSaving] = useState(false); 
+  const [isUploading, setIsUploading] = useState(false); 
+  const fileInputRef = useRef(null)
 
   const handleUpdateName = async () => {
     if (!newUsername.trim() || newUsername === myProfile.username) return
@@ -610,43 +822,100 @@ function ProfileModule({ session, myProfile, setMyProfile, t, colors }) {
     setIsUploading(false)
   }
 
+  const copyToClipboard = async (text) => {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    // Cara modern
+    await navigator.clipboard.writeText(text);
+  } else {
+    // Fallback cara lama (untuk device yang memblokir clipboard)
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textArea);
+  }
+  alert("ID berhasil disalin!");
+};
+
+const handleShareId = async () => {
+    const textToShare = userProfile?.id; // Sesuaikan dengan data ID kamu
+    if (!textToShare) return;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToShare);
+        alert("ID berhasil disalin!");
+      } else {
+        // Fallback jika browser memblokir clipboard
+        const textArea = document.createElement("textarea");
+        textArea.value = textToShare;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        alert("ID berhasil disalin!");
+      }
+    } catch (err) {
+      console.error("Gagal menyalin:", err);
+    }
+  };
+
+  
+
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 bg-gradient-to-b from-transparent to-black/10 min-h-full">
-      <div className="flex flex-col items-center mt-2">
-        <div className="relative group cursor-pointer mb-4 md:mb-6" onClick={() => fileInputRef.current.click()}>
-          <Avatar url={myProfile.avatar_url} name={myProfile.username} size="w-24 h-24 md:w-40 md:h-40" className="group-hover:rotate-6 transition-transform shadow-[4px_4px_0_0_#000] md:shadow-[8px_8px_0_0_#000]" />
+    <div className="p-4 md:p-6 space-y-5 md:space-y-6 bg-gradient-to-b from-transparent to-black/5 min-h-full pb-24">
+      <h2 className="text-xl md:text-2xl font-black uppercase tracking-wider border-b-[3px] md:border-[4px] border-black pb-3">Pengaturan ⚙️</h2>
+      
+      {/* 1. KARTU PROFIL & EDIT */}
+      <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[2rem] border-[3px] md:border-[4px] border-black shadow-[4px_4px_0_0_#000] flex flex-col items-center">
+        <div className="relative group cursor-pointer mb-4" onClick={() => fileInputRef.current.click()}>
+          <Avatar url={myProfile.avatar_url} name={myProfile.username} size="w-20 h-20 md:w-28 md:h-28" className="group-hover:rotate-6 transition-transform shadow-[4px_4px_0_0_#000]" />
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full bg-black/50">
-            <span className="text-[10px] md:text-sm font-black text-white bg-[#ff5757] px-2 py-1 md:px-4 md:py-2 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000]">{isUploading ? 'WAIT...' : 'GANTI'}</span>
+            <span className="text-[10px] md:text-xs font-black text-white bg-[#ff5757] px-2 py-1 rounded-full border-2 border-black shadow-[2px_2px_0_0_#000]">{isUploading ? 'WAIT...' : 'GANTI'}</span>
           </div>
           <input type="file" ref={fileInputRef} onChange={handleUploadAvatar} accept="image/*" className="hidden" />
         </div>
-        <h2 className="text-xl md:text-3xl font-black uppercase text-shadow-[2px_2px_0_0_#000]">{myProfile.username}</h2>
+
+        <div className="w-full space-y-3 md:space-y-4">
+          <div>
+            <label className="block text-[10px] md:text-xs font-black mb-1 uppercase text-gray-600">Username</label>
+            <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full p-2.5 md:p-3 rounded-xl bg-gray-50 border-[2px] border-black outline-none font-bold text-sm md:text-base text-black focus:shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)] transition-all" />
+          </div>
+          <div>
+            <label className="block text-[10px] md:text-xs font-black mb-1 uppercase text-gray-600">ID Unik</label>
+            <div className="flex gap-2">
+              <input type="text" value={myProfile.chat_id} readOnly className="flex-1 p-2.5 md:p-3 rounded-xl bg-gray-200 border-[2px] border-black font-mono font-bold text-sm outline-none text-black truncate" />
+              <button onClick={() => navigator.clipboard.writeText(myProfile.chat_id)} className="bg-[#38b6ff] px-4 rounded-xl border-[2px] border-black font-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all"><Icons.Copy /></button>
+              
+              {/* TOMBOL SHARE BARU */}
+              <button onClick={handleShareId} className="bg-[#ffde59] px-4 rounded-xl border-[2px] border-black font-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all" title="Bagikan ID"><Icons.Share /></button>
+            </div>
+          </div>
+          <button onClick={handleUpdateName} disabled={isSaving || newUsername === myProfile.username} className={`w-full py-2.5 md:py-3 rounded-xl border-[2px] border-black bg-[#00e676] text-black font-black text-sm uppercase shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all disabled:opacity-50 disabled:hover:translate-y-0`}>
+            {isSaving ? 'Menyimpan... ⏳' : 'Simpan Nama!'}
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-4 md:space-y-6 bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border-[3px] md:border-[4px] border-black shadow-[4px_4px_0_0_#000] md:shadow-[8px_8px_0_0_#000]">
-        <div>
-          <label className={`block text-xs md:text-sm font-black mb-1 md:mb-2 uppercase text-black`}>NAMA BREN</label>
-          <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className={`w-full p-3 md:p-4 rounded-xl md:rounded-2xl bg-gray-50 border-[2px] md:border-[3px] border-black outline-none font-bold text-sm md:text-base text-black focus:shadow-[inset_0_-4px_0_0_rgba(0,0,0,0.2)] shadow-[inset_3px_3px_0_0_rgba(0,0,0,0.1)] transition-all`} />
-        </div>
-        <div>
-          <label className={`block text-xs md:text-sm font-black mb-1 md:mb-2 uppercase text-black`}>ID RAHASIA</label>
-          <div className="flex gap-2 md:gap-3">
-            <input type="text" value={myProfile.chat_id} readOnly className={`flex-1 p-3 md:p-4 rounded-xl md:rounded-2xl bg-gray-200 border-[2px] md:border-[3px] border-black font-mono font-bold text-sm md:text-base outline-none text-black`} />
-            <button onClick={() => navigator.clipboard.writeText(myProfile.chat_id)} className={`bg-[#38b6ff] text-black border-[2px] md:border-[3px] border-black px-4 md:px-5 rounded-xl md:rounded-2xl font-black shadow-[3px_3px_0_0_#000] hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center`}><Icons.Copy /></button>
-          </div>
-        </div>
-        <div className="pt-2 flex flex-col gap-3 md:gap-4">
-          <button onClick={handleUpdateName} disabled={isSaving || newUsername === myProfile.username} className={`w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black ${colors.primary} font-black text-sm md:text-lg shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[5px_5px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center uppercase disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0_0_#000]`}>
-            {isSaving ? 'MENYIMPAN... ⏳' : 'SIMPAN PERUBAHAN NAMA!'}
-          </button>
-          <button 
-            onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/?id=${myProfile.chat_id}`); alert('Link di-copy! Gas sebarin! 🚀') }}
-            className={`w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-[2px] md:border-[3px] border-black bg-[#ffde59] text-black font-black text-sm md:text-lg shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[5px_5px_0_0_#000] md:hover:shadow-[6px_6px_0_0_#000] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 md:gap-3 uppercase`}
-          >
-            <Icons.Share /> <span>SEBARKAN PROFIL INI!</span>
-          </button>
-        </div>
+      {/* 2. TOMBOL ATUR TEMA */}
+      <button onClick={() => setActiveMenu('theme')} className="w-full p-4 rounded-2xl border-[3px] border-black bg-[#38b6ff] text-black font-black uppercase flex justify-between items-center shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000] transition-all">
+         <span>Atur Tema Visual 🎨</span>
+         <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+      </button>
+
+      {/* 3. TOMBOL LOGOUT */}
+      <button onClick={() => openConfirm('KELUAR PINTU', 'Yakin mau keluar dari NexChat?', () => supabase.auth.signOut())} className="w-full p-4 rounded-2xl border-[3px] border-black bg-[#ff5757] text-white font-black uppercase flex justify-between items-center shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000] transition-all">
+         <span>Keluar / Logout 🚪</span>
+         <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+      </button>
+
+      {/* 4. KIAT (TIP) DEV */}
+      <div className="mt-6 p-4 rounded-2xl border-[3px] border-black bg-[#ffde59] text-black text-center shadow-[4px_4px_0_0_#000] rotate-[-2deg] hover:rotate-[2deg] transition-transform">
+         <p className="font-black text-xs md:text-sm uppercase tracking-wider mb-1">💡 Kiat Developer</p>
+         <p className="font-bold text-sm md:text-base">Fitur baru segera datang! Tetap pantau terus ya!</p>
       </div>
+
     </div>
   )
 }
@@ -692,6 +961,61 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
       setContacts(contacts.map(c => c.contact_id === activeChat.contact_id ? { ...c, cleared_at: now } : c))
       setActiveChat(prev => ({ ...prev, cleared_at: now }))
     })
+  }
+
+  const handleDeleteMessage = async (msgId) => {
+  openConfirm('HAPUS PESAN', 'Yakin mau hapus pesan ini?', async () => {
+    // Update isi pesan di database menjadi tanda dihapus
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: 'Pesan ini telah dihapus', is_deleted: true })
+      .eq('id', msgId);
+      
+    if (!error) {
+      // Tidak perlu setGlobalMessages secara manual, 
+      // karena realtime Supabase akan otomatis mengupdate layar
+    }
+  });
+}
+
+const [toastMsg, setToastMsg] = useState(null)
+  
+  // Fungsi memunculkan pop-up custom
+  const showToast = (msg) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), 2000) // Hilang otomatis dalam 2 detik
+  }
+
+  // Fungsi mengubah ID menjadi Username dengan tepat
+  const getSenderName = (senderId) => {
+    if (senderId === myProfile.chat_id) return 'DIRI SENDIRI'
+    if (activeChat && activeChat.contact_id === senderId) return activeChat.contact_username
+    const contact = contacts?.find(c => c.contact_id === senderId)
+    if (contact) return contact.contact_username
+    return senderId
+  }
+
+  // Fungsi Copy Teks Anti-Error
+  const handleCopyText = (text) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => showToast("PESAN BERHASIL DISALIN! 📋"))
+    } else {
+      const textArea = document.createElement("textarea")
+      textArea.value = text
+      textArea.style.position = "fixed"
+      textArea.style.left = "-999999px"
+      textArea.style.top = "-999999px"
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        showToast("PESAN BERHASIL DISALIN! 📋")
+      } catch (err) {
+        showToast("GAGAL MENYALIN PESAN! ❌")
+      }
+      document.body.removeChild(textArea)
+    }
   }
 
   useEffect(() => {
@@ -816,6 +1140,13 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
 
   return (
     <>
+    {toastMsg && (
+        <div className="fixed top-[100px] left-1/2 -translate-x-1/2 z-[200] animate-bounce">
+          <div className="bg-[#ffde59] border-[3px] border-black rounded-full px-6 py-2 shadow-[4px_4px_0_0_#000] text-black font-black uppercase tracking-wider text-sm md:text-base">
+            {toastMsg}
+          </div>
+        </div>
+      )}
       <Modal isOpen={isContactInfoOpen} onClose={() => setIsContactInfoOpen(false)} title="PROFIL SI DIA 👀" colors={colors}>
         <div className="flex flex-col items-center space-y-4 md:space-y-6 pb-2 md:pb-4">
           <Avatar url={activeChat?.avatar_url} name={activeChat?.contact_username} size="w-24 h-24 md:w-32 md:h-32" className="shadow-[4px_4px_0_0_#000] md:shadow-[6px_6px_0_0_#000]" />
@@ -882,14 +1213,14 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
             </div>
 
             {filteredMessages.map((msg, idx) => {
-              const isMe = msg.sender_id === myProfile.chat_id
+              
+              const isMe = msg.sender_id === myProfile.chat_id;
               const dateLabel = formatDateBadge(msg.created_at)
               const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null
               const showDateBadge = !prevMsg || formatDateBadge(prevMsg.created_at) !== dateLabel
               const timeString = new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
               const repliedMsg = msg.reply_to_id ? globalMessages.find(m => m.id === msg.reply_to_id) : null
               const isActive = activeMsgId === msg.id
-
               const showUnreadDivider = msg.id === firstUnreadMsgId;
 
               return (
@@ -907,34 +1238,46 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
                     </div>
                   )}
 
-                  <div className={`flex flex-col max-w-[85%] md:max-w-[75%] group ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
-                    <div className={`relative flex items-end gap-2 md:gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {/* WRAPPER BARIS PESAN: Mengatur posisi Kiri / Kanan */}
+                  <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    
+                    {/* CONTAINER BUBBLE + TOMBOL (Maksimal 85% layar di HP, 75% di Desktop) */}
+                    <div className={`flex items-end gap-2 md:gap-3 max-w-[85%] md:max-w-[75%] group ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                       
+                      {/* BUBBLE CHAT */}
                       <div 
                         onClick={(e) => { e.stopPropagation(); setActiveMsgId(isActive ? null : msg.id); }}
-                        className={`p-1.5 relative flex flex-col transition-all duration-200 cursor-pointer ${isMe ? colors.bubbleMe : colors.bubbleThem} ${isActive ? 'scale-105 rotate-1' : 'hover:scale-[1.02]'} z-10`}
+                        className={`relative flex flex-col p-2 md:p-3 rounded-2xl border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] cursor-pointer transition-all ${isMe ? colors.bubbleMe : colors.bubbleThem} ${isActive ? 'scale-105 rotate-1' : 'hover:-translate-y-0.5'} z-10 min-w-0`}
                       >
+                        {/* Buntut Bubble */}
                         <div className={`absolute bottom-2 ${isMe ? '-right-2 border-l-[10px] md:border-l-[12px] border-l-[#38b6ff] border-t-[10px] md:border-t-[12px] border-t-transparent border-b-[10px] md:border-b-[12px] border-b-transparent' : '-left-2 border-r-[10px] md:border-r-[12px] border-r-white border-t-[10px] md:border-t-[12px] border-t-transparent border-b-[10px] md:border-b-[12px] border-b-transparent'} `} style={{ filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}></div>
 
-                        <div className="px-2.5 pt-1.5 pb-1.5 md:px-3 md:pt-2 md:pb-2 flex flex-col gap-1.5 md:gap-2 min-w-[100px] md:min-w-[120px] max-w-full overflow-hidden z-10">
-    
+                        {/* Konten Dalam Bubble */}
+                        <div className="flex flex-col gap-1 md:gap-1.5 min-w-[80px] min-w-0 z-10">
+
+                          {/* PESAN BALASAN (REPLY) */}
                           {repliedMsg && (
-  <div className={`p-2 md:p-3 rounded-lg md:rounded-xl border-[2px] border-black text-xs md:text-sm font-bold overflow-hidden flex flex-col min-w-0 bg-white/50 shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)]`}>
-    <p className="font-black mb-0.5 md:mb-1  text-[#ff5757] uppercase">{repliedMsg.sender_id === myProfile.chat_id ? 'AKU' : repliedMsg.sender_id}</p>
-    {/* Hapus class 'truncate' agar teks panjang tidak terpotong */}
-    <p className="break-words whitespace-normal">{repliedMsg.content || 'Berkas Terlampir 📎'}</p>
+  <div className="p-2 mb-1 rounded-lg border-l-[3px] border-black bg-white/50 flex flex-col shadow-[inset_2px_2px_0_0_rgba(0,0,0,0.1)] w-full min-w-0">
+    {/* LABEL YANG SUDAH JADI USERNAME */}
+    <p className="font-black mb-0.5 md:mb-1 text-[#ff5757] uppercase text-[10px]">
+      MEMBALAS {getSenderName(repliedMsg.sender_id)}
+    </p>
+    <p className="text-xs md:text-sm font-bold text-black break-words whitespace-pre-wrap line-clamp-3">
+      {repliedMsg.content || 'Berkas Terlampir 📎'}
+    </p>
   </div>
 )}
 
+                          {/* MEDIA FILES */}
                           {msg.media_files && msg.media_files.length > 0 && (
                             <div className={`grid gap-2 ${msg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} mt-1`}>
                               {msg.media_files.map((file, idx) => {
                                 if (file.type === 'document') {
                                   return (
-                                    <a key={idx} href={file.url} target="_blank" rel="noreferrer" download={file.name} className="relative group/media overflow-hidden rounded-lg md:rounded-xl border-[2px] md:border-[3px] border-black shadow-[2px_2px_0_0_#000] block hover:-translate-y-1 transition-transform bg-[#ffde59]">
-                                      <div className="flex items-center justify-between gap-2 md:gap-3 p-2 md:p-3 text-xs md:text-sm font-bold text-black">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                          <Icons.File /> <span className="truncate max-w-[100px] md:max-w-[120px]">{file.name}</span>
+                                    <a key={idx} href={file.url} target="_blank" rel="noreferrer" download={file.name} className="relative group/media overflow-hidden rounded-lg border-[2px] border-black shadow-[2px_2px_0_0_#000] block hover:-translate-y-1 transition-transform bg-[#ffde59]">
+                                      <div className="flex items-center justify-between gap-2 p-2 text-xs font-bold text-black min-w-0">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          <Icons.File /> <span className="truncate min-w-0">{file.name}</span>
                                         </div>
                                         <Icons.Download />
                                       </div>
@@ -942,10 +1285,10 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
                                   )
                                 }
                                 return (
-                                  <div key={idx} className="relative group/media overflow-hidden rounded-lg md:rounded-xl border-[2px] md:border-[3px] border-black bg-white shadow-[2px_2px_0_0_#000]">
-                                    {file.type === 'image' && <img src={file.url} alt="Media" onClick={() => setPreviewMedia({url: file.url, type: 'image'})} className="object-cover w-full h-32 md:h-48 sm:h-56 cursor-pointer" />}
-                                    {file.type === 'video' && <video src={file.url} onClick={() => setPreviewMedia({url: file.url, type: 'video'})} className="object-cover w-full h-32 md:h-48 sm:h-56 cursor-pointer" />}
-                                    <a href={file.url} target="_blank" rel="noreferrer" download={file.name} onClick={(e) => e.stopPropagation()} className={`absolute top-2 right-2 p-1.5 md:p-2 rounded-lg md:rounded-xl border-2 border-black opacity-100 shadow-[2px_2px_0_0_#000] bg-[#38b6ff] text-black hover:-translate-y-1 hover:shadow-[3px_3px_0_0_#000] md:hover:shadow-[4px_4px_0_0_#000] transition-transform z-20`} title="Unduh">
+                                  <div key={idx} className="relative group/media overflow-hidden rounded-lg border-[2px] border-black bg-white shadow-[2px_2px_0_0_#000]">
+                                    {file.type === 'image' && <img src={file.url} alt="Media" onClick={() => setPreviewMedia({url: file.url, type: 'image'})} className="object-cover w-full h-32 md:h-48 cursor-pointer" />}
+                                    {file.type === 'video' && <video src={file.url} onClick={() => setPreviewMedia({url: file.url, type: 'video'})} className="object-cover w-full h-32 md:h-48 cursor-pointer" />}
+                                    <a href={file.url} target="_blank" rel="noreferrer" download={file.name} onClick={(e) => e.stopPropagation()} className="absolute top-2 right-2 p-1.5 rounded-lg border-2 border-black shadow-[2px_2px_0_0_#000] bg-[#38b6ff] text-black hover:-translate-y-1 transition-transform z-20" title="Unduh">
                                       <Icons.Download />
                                     </a>
                                   </div>
@@ -954,51 +1297,109 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
                             </div>
                           )}
 
-                          <div className="flex flex-col gap-1 mt-1 w-full">
-  <p className="text-sm md:text-[16px] font-bold break-words whitespace-pre-wrap leading-relaxed max-w-full px-1">
-    {msg.content}
-  </p>
-  <div className={`flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-black self-end opacity-80 pt-1`}>
-    <span>{timeString}</span>
-    {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
-  </div>
-</div>
+                          {/* TEKS UTAMA PESAN: Kunci Rahasia Pembungkus Teks! */}
+                          <p className="break-all whitespace-pre-wrap">
+  {msg.content}
+</p>
+
+                          {/* WAKTU DAN CENTANG */}
+                          <div className="flex items-center gap-1 text-[10px] font-black self-end opacity-80 pt-0.5 shrink-0">
+                            <span>{timeString}</span>
+                            {isMe && <span>{msg.is_read ? <Icons.DoubleCheck /> : <Icons.Check />}</span>}
+                          </div>
+
                         </div>
                       </div>
                       
-                      <div className={`transition-all flex flex-row items-center gap-1 md:gap-2 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-90 md:group-hover:opacity-100 md:group-hover:scale-100'}`}>
-                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(msg.content); setActiveMsgId(null); }} className={`p-1.5 md:p-2 rounded-full bg-white text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all shrink-0`} title="Copy"><Icons.Copy /></button>
-                        <button onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setEditingMsg(null); setActiveMsgId(null); }} className={`p-1.5 md:p-2 rounded-full bg-[#ffde59] text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all shrink-0`} title="Balas"><Icons.Reply /></button>
-                        {msg.sender_id === myProfile.chat_id && (
-                          <button onClick={(e) => { e.stopPropagation(); setEditingMsg(msg); setInputMessage(msg.content); setReplyingTo(null); setActiveMsgId(null); }} className={`p-1.5 md:p-2 rounded-full bg-[#38b6ff] text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all shrink-0`} title="Edit"><Icons.Edit /></button>
-                        )}
-                      </div>
+                      {/* TOMBOL AKSI (Copy/Reply/Edit) */}
+                     {/* TOMBOL AKSI: Grid 2x2 di mobile, Flex-row di desktop */}
+<div className={`transition-all grid grid-cols-2 md:flex md:flex-row items-center gap-1.5 shrink-0 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-90 md:group-hover:opacity-100 md:group-hover:scale-100'}`}>
+  
+  {/* Tombol Copy */}
+  <button 
+  onClick={(e) => { 
+    e.stopPropagation(); 
+    e.preventDefault();
+    handleCopyText(msg.content); 
+    setActiveMsgId(null); 
+  }} 
+  className="p-1.5 md:p-2 rounded-full bg-white text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all" 
+  title="Copy"
+>
+  <Icons.Copy />
+</button>
+
+  {/* Tombol Balas */}
+  <button 
+    onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setEditingMsg(null); setActiveMsgId(null); }} 
+    className="p-1.5 md:p-2 rounded-full bg-[#ffde59] text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all" 
+    title="Balas"
+  >
+    <Icons.Reply />
+  </button>
+
+  {/* Tombol Edit */}
+  {isMe && !msg.is_deleted && (
+  <button 
+    onClick={(e) => { 
+      e.stopPropagation(); 
+      setEditingMsg(msg); 
+      // PASTIKAN inputMessage diupdate persis dengan isi pesan yang diklik
+      setInputMessage(msg.content); 
+      setReplyingTo(null); 
+      setActiveMsgId(null); 
+    }} 
+    className="p-1.5 md:p-2 rounded-full bg-[#38b6ff] text-black border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all" 
+    title="Edit"
+  >
+    <Icons.Edit />
+  </button>
+)}
+
+  {/* Tombol Hapus */}
+  {isMe && !msg.is_deleted && (
+    <button 
+      onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }} 
+      className="p-1.5 md:p-2 rounded-full bg-[#ff5757] text-white border-2 border-black shadow-[2px_2px_0_0_#000] hover:-translate-y-1 transition-all" 
+      title="Hapus"
+    >
+      <Icons.Trash />
+    </button>
+  )}
+</div>
+
                     </div>
                   </div>
                 </Fragment>
               )
             })}
 
+            {/* AREA PESAN PENDING / SEDANG DIKIRIM */}
             {pendingMessages.map((msg) => (
-              <div key={msg.id} className="flex flex-col max-w-[85%] md:max-w-[75%] ml-auto items-end opacity-70 group animate-pulse">
-                <div className={`relative flex items-end gap-2 md:gap-3 flex-row-reverse`}>
-                  <div className={`p-1.5 relative flex flex-col transition-all duration-200 cursor-pointer 
-  min-w-[120px] md:min-w-[150px] // Tambahkan ini agar bubble tidak terlalu kurus
-  max-w-[85%] md:max-w-[75%] 
-  ${isMe ? colors.bubbleMe : colors.bubbleThem}`}>
-                    <div className="absolute bottom-2 -right-2 border-l-[10px] md:border-l-[12px] border-l-[#38b6ff] border-t-[10px] md:border-t-[12px] border-t-transparent border-b-[10px] md:border-b-[12px] border-b-transparent" style={{ filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}></div>
-                    <div className="px-2.5 pt-1.5 pb-1.5 md:px-3 md:pt-2 md:pb-2 flex flex-col gap-1.5 md:gap-2 min-w-[100px] md:min-w-[120px] max-w-full overflow-hidden z-10">
+              <div key={msg.id} className="flex w-full justify-end mb-2 opacity-70 animate-pulse">
+                <div className={`flex items-end gap-2 md:gap-3 max-w-[85%] md:max-w-[75%] flex-row-reverse`}>
+                  <div className={`relative flex flex-col p-2 md:p-3 rounded-2xl border-[2px] border-black shadow-[3px_3px_0_0_#000] ${colors.bubbleMe} min-w-0`}>
+                    
+                    {/* Buntut Bubble */}
+                    <div className="absolute bottom-2 -right-2 border-l-[10px] border-l-[#38b6ff] border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent" style={{ filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}></div>
+                    
+                    <div className="flex flex-col gap-1 min-w-0 z-10">
+                      {/* Tampilan Balasan (Jika ada) */}
                       {msg.reply_to_id && (
-                        <div className={`p-2 md:p-3 rounded-lg md:rounded-xl border-[2px] border-black text-xs md:text-sm font-bold bg-white/50`}>
-                          <p className="font-black mb-0.5 md:mb-1 truncate text-[#ff5757] uppercase">MEMBALAS</p>
-                          <p className="line-clamp-2">Pesan terlampir</p>
+                        <div className="p-2 mb-1 rounded-lg border-l-[3px] border-black bg-white/50 flex flex-col min-w-0">
+                           <p className="font-black text-[#ff5757] uppercase text-[10px]">MEMBALAS</p>
+                           <p className="text-xs font-bold text-black break-words whitespace-pre-wrap">Pesan terlampir</p>
                         </div>
                       )}
-                      <div className="flex items-end gap-3 md:gap-4 justify-between mt-1">
-                        <p className="text-sm md:text-[16px] font-bold break-words">{msg.content}</p>
-                        <div className={`flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-black pt-1 md:pt-2 opacity-80`}>
-                          <span><Icons.Clock /></span>
-                        </div>
+                      
+                      {/* TEKS PENDING: Diubah sesuai permintaanmu */}
+                      <p className="text-sm md:text-[16px] font-bold break-words whitespace-pre-wrap leading-relaxed min-w-0 italic">
+                        Sedang mengirim pesan... ⏳
+                      </p>
+                      
+                      {/* Ikon Jam (Pending) */}
+                      <div className="flex items-center gap-1 text-[10px] font-black self-end opacity-80 pt-1 shrink-0">
+                        <span><Icons.Clock /></span>
                       </div>
                     </div>
                   </div>
@@ -1027,27 +1428,34 @@ function ChatRoom({ session, myProfile, t, colors, activeChat, setActiveChat, co
       {/* Area Input Chat */}
       <div className={`p-3 md:p-4 flex flex-col gap-2 md:gap-3 ${colors.panel} border-t-[3px] md:border-t-[4px] border-black shrink-0 z-20`} style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         {editingMsg && (
-          <div className="flex justify-between items-center bg-[#ffde59] border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] rounded-xl md:rounded-2xl p-2 md:p-3 mx-1 md:mx-2 mb-1 md:mb-2">
-            <div className="pl-1 md:pl-2 flex-1 overflow-hidden text-black">
-              <p className="text-[10px] md:text-xs font-black uppercase tracking-wider mb-0.5 md:mb-1">MENGEDIT PESAN ✏️</p>
-              <p className={`text-xs md:text-sm font-bold truncate`}>{editingMsg.content}</p>
-            </div>
-            <button onClick={() => { setEditingMsg(null); setInputMessage(''); }} className="p-1 rounded-full bg-white border-2 border-black hover:bg-red-100 transition">
-              <Icons.Plus className="rotate-45 text-black" strokeWidth={4} />
-            </button>
-          </div>
-        )}
+  <div className="flex justify-between items-center bg-[#ffde59] border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] rounded-xl p-2 md:p-3 mx-1 mb-2">
+    <div className="pl-1 flex-1 overflow-hidden text-black min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-wider mb-0.5">MENGEDIT PESAN ✏️</p>
+      {/* Tampilkan dari editingMsg.content agar selalu akurat */}
+      <p className="text-xs md:text-sm font-bold break-all whitespace-pre-wrap line-clamp-3">
+  {editingMsg.content}
+</p>
+    </div>
+    <button onClick={() => { setEditingMsg(null); setInputMessage(''); }} className="p-1 rounded-full bg-white border-2 border-black shrink-0 self-start mt-1">
+      <Icons.Plus className="rotate-45 text-black" strokeWidth={4} />
+    </button>
+  </div>
+)}
         {replyingTo && (
-          <div className="flex justify-between items-center bg-[#38b6ff] border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] md:shadow-[4px_4px_0_0_#000] rounded-xl md:rounded-2xl p-2 md:p-3 mx-1 md:mx-2 mb-1 md:mb-2">
-            <div className="pl-1 md:pl-2 flex-1 overflow-hidden text-black">
-              <p className="text-[10px] md:text-xs font-black uppercase tracking-wider mb-0.5 md:mb-1">MEMBALAS {replyingTo.sender_id === myProfile.chat_id ? 'DIRI SENDIRI 😂' : replyingTo.sender_id}</p>
-              <p className={`text-xs md:text-sm font-bold truncate`}>{replyingTo.content || 'Berkas Terlampir 📎'}</p>
-            </div>
-            <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full bg-white border-2 border-black hover:bg-red-100 transition">
-              <Icons.Plus className="rotate-45 text-black" strokeWidth={4} />
-            </button>
-          </div>
-        )}
+  <div className="flex justify-between items-center bg-[#38b6ff] border-[2px] md:border-[3px] border-black shadow-[3px_3px_0_0_#000] rounded-xl md:rounded-2xl p-2 md:p-3 mx-1 mb-2">
+    <div className="pl-1 flex-1 overflow-hidden text-black min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-wider mb-0.5">
+        MEMBALAS {getSenderName(replyingTo.sender_id)}
+      </p>
+      <p className="text-xs md:text-sm font-bold break-all whitespace-pre-wrap line-clamp-3">
+        {replyingTo.content || 'Berkas Terlampir 📎'}
+      </p>
+    </div>
+    <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full bg-white border-2 border-black">
+      <Icons.Plus className="rotate-45 text-black" strokeWidth={4} />
+    </button>
+  </div>
+)}
 
         <form onSubmit={handleSendMessage} className="flex gap-2 md:gap-3 items-end mx-1 md:mx-2">
           <input type="file" multiple ref={mediaInputRef} onChange={handleSendMedia} className="hidden" />
