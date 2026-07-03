@@ -17,6 +17,11 @@
   }
 }
 
+@keyframes marquee {
+  0%, 10% { transform: translateX(0); }
+  90%, 100% { transform: translateX(calc(-100% + 200px)); } /* Sesuaikan 200px dengan lebar container */
+}
+
 .hero {
   position: relative;
 
