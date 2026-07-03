@@ -6,7 +6,7 @@ import myIcon from '../public/favicon.svg';
 import StickerMaker from './StickerMaker';
 import DeleteAccountModal from './DeleteAccountModal';
 import GroupManager from './GroupManager';
-import logo from '../public/favicon.svg';
+
 
 // ================= IKON SVG MODERN =================
 const Icons = {
@@ -1075,7 +1075,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                    
                    <div className="flex flex-col items-center justify-center mt-6 mb-8 text-center">
                      <div className="w-24 h-24 bg-white dark:bg-gradient-to-br dark:from-[#13281E] dark:to-[#0A1710] border border-gray-100 dark:border-white/10 rounded-3xl flex items-center justify-center shadow-xl mb-4">
-                       <img src="./public/favicon.svg" alt="NexChat Logo" className="w-12 h-12" />
+                       <img src="./public/logo.png" alt="NexChat Logo" className="w-12 h-12" />
                      </div>
                      <h2 className="text-2xl font-black tracking-tight mb-1">NexChat Spatial</h2>
                      <p className={`font-bold text-xs ${colors.textMuted} bg-black/5 dark:bg-white/5 border ${colors.border} px-3 py-1 rounded-full inline-block`}>Versi 3.0 (Update Terbaru)</p>
@@ -1096,7 +1096,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
 
                    {/* Tombol Akses (Web & APK) */}
                    <div className="flex gap-3 mb-10">
-                      <button onClick={() => window.open('https://satriamika.my.id', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-[#0C8F5B] text-[#0C8F5B] dark:border-[#78C951] dark:text-[#78C951] hover:bg-[#0C8F5B]/10 dark:hover:bg-[#78C951]/10 transition-all text-center`}>
+                      <button onClick={() => window.open('https://nexchat-eight.vercel.app/', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-[#0C8F5B] text-[#0C8F5B] dark:border-[#78C951] dark:text-[#78C951] hover:bg-[#0C8F5B]/10 dark:hover:bg-[#78C951]/10 transition-all text-center`}>
                         <Icons.Globe className="w-4 h-4" /> Versi Web
                       </button>
                       <button onClick={() => window.open('https://satriamika.my.id/download/nexchat.apk', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F] shadow-lg hover:opacity-90 transition-all text-center`}>
