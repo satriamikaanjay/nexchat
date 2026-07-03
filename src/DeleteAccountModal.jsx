@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
 
-export default function DeleteAccountModal({ isOpen, onClose, session, colors, t }) {
+// FIX 1: Tambahkan 'myProfile' ke dalam props
+export default function DeleteAccountModal({ isOpen, onClose, session, myProfile, colors, t }) {
   const [password, setPassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // FIX 2: Blok kode 'await' yang nyasar di sini sudah dihapus
 
   if (!isOpen) return null;
 
@@ -28,15 +31,23 @@ export default function DeleteAccountModal({ isOpen, onClose, session, colors, t
         throw new Error('Password yang Anda masukkan salah.');
       }
 
-      // 2. Jika password benar, panggil fungsi backend untuk menghapus akun permanen
-      // Asumsi: Anda membuat fungsi RPC 'delete_user_account' di Postgres Supabase
+      // === 2. PROSES SAPU JAGAT ===
+      const chatId = myProfile.chat_id;
+      
+      await supabase.from('contacts').delete().eq('contact_id', chatId);
+      await supabase.from('messages').delete().or(`sender_id.eq.${chatId},receiver_id.eq.${chatId}`);
+      await supabase.from('group_members').delete().eq('user_id', chatId);
+      await supabase.from('profiles').delete().eq('chat_id', chatId);
+      // ===============================================
+
+      // 3. Jika password benar dan data bersih, panggil fungsi backend untuk menghapus akun permanen
       const { error: rpcError } = await supabase.rpc('delete_user_account');
       
       if (rpcError) {
         throw new Error('Gagal menghapus data dari database. Pastikan RPC tersedia.');
       }
 
-      // 3. Logout dan tendang user
+      // 4. Logout dan tendang user
       alert('Akun berhasil dihapus secara permanen.');
       await supabase.auth.signOut();
       
