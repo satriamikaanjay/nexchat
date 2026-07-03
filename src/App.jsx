@@ -1099,7 +1099,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                       <button onClick={() => window.open('https://nexchat-eight.vercel.app/', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-[#0C8F5B] text-[#0C8F5B] dark:border-[#78C951] dark:text-[#78C951] hover:bg-[#0C8F5B]/10 dark:hover:bg-[#78C951]/10 transition-all text-center`}>
                         <Icons.Globe className="w-4 h-4" /> Versi Web
                       </button>
-                      <button onClick={() => window.open('https://satriamika.my.id/download/nexchat.apk', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F] shadow-lg hover:opacity-90 transition-all text-center`}>
+                      <button onClick={() => window.open('https://github.com/satriamikaanjay/nexchat/releases/download/v1.1/NexChat.apk', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F] shadow-lg hover:opacity-90 transition-all text-center`}>
                         <Icons.Smartphone className="w-4 h-4" /> Versi APK
                       </button>
                    </div>
