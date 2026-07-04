@@ -1146,7 +1146,10 @@ function MainApp({ session, myProfile, setMyProfile }) {
                    
                    <div className="flex flex-col items-center justify-center mt-6 mb-8 text-center">
                      <div className="w-24 h-24 bg-white dark:bg-gradient-to-br dark:from-[#13281E] dark:to-[#0A1710] border border-gray-100 dark:border-white/10 rounded-3xl flex items-center justify-center shadow-xl mb-4">
+
                        <img src={logoImg} alt="NexChat Logo" className="w-12 h-12" />
+
+
                      </div>
                      <h2 className="text-2xl font-black tracking-tight mb-1">NexChat Spatial</h2>
                      <p className={`font-bold text-xs ${colors.textMuted} bg-black/5 dark:bg-white/5 border ${colors.border} px-3 py-1 rounded-full inline-block`}>Versi 3.0 (Update Terbaru)</p>
