@@ -621,7 +621,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
   const handleSwitchChat = (chat) => {
     setActiveChat(chat);
     // Bersihkan notifikasi saat berpindah obrolan
-    LocalNotifications.removeAllDeliveredNotifications();
+    PushNotifications.removeAllDeliveredNotifications();
   }
 
   const isMainPage = ['chat', 'groups', 'tasks'].includes(activeMenu);
@@ -760,7 +760,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
             const notifTitle = isGroup ? `Grup Baru` : `Pesan Baru`;
 
             // Jadwalkan Notifikasi
-            LocalNotifications.schedule({
+            PushNotifications.schedule({
                 notifications: [
                     {
                         title: notifTitle,
@@ -2174,7 +2174,7 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
       supabase.from('messages').update({ is_read: true }).in('id', unreadMsgs.map(m => m.id)).then();
       
       // HAPUS SEMUA NOTIFIKASI DI HP KARENA PESAN SUDAH DIBACA
-      LocalNotifications.removeAllDeliveredNotifications();
+      PushNotifications.removeAllDeliveredNotifications();
     }
   }, [activeChat, globalMessages, myProfile.chat_id, setGlobalMessages, isAtBottom])
   const getWallpaperStyle = () => {
