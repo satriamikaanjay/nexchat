@@ -1,32 +1,13 @@
 {
   "project_info": {
-    "project_number": "648793025971",
-    "project_id": "idchat-fb4cb",
-    "storage_bucket": "idchat-fb4cb.firebasestorage.app"
+    "project_number": "744285677619",
+    "project_id": "nexchat-1a306",
+    "storage_bucket": "nexchat-1a306.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:648793025971:android:dd496eeadf511660212fc6",
-        "android_client_info": {
-          "package_name": "com.aistudio.idchat.bzkqpa"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyB2SRclHve6qQFRbytmWW_pBdY6vI_udgE"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:648793025971:android:148d68b5940bdf0c212fc6",
+        "mobilesdk_app_id": "1:744285677619:android:82649b3c40c83f678adb46",
         "android_client_info": {
           "package_name": "com.satria.nexchat"
         }
@@ -34,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB2SRclHve6qQFRbytmWW_pBdY6vI_udgE"
+          "current_key": "AIzaSyCo2_g57Ui3B3O3bK6QoebXz0t552lix2A"
         }
       ],
       "services": {

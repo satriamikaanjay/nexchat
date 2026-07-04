@@ -8,6 +8,7 @@ import DeleteAccountModal from './DeleteAccountModal';
 import GroupManager from './GroupManager';
 import logoImg from './assets/logo.png';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { FCM } from "@capacitor-community/fcm";
 
 
 // ================= IKON SVG MODERN =================
@@ -428,6 +429,26 @@ function MainApp({ session, myProfile, setMyProfile }) {
   const [globalMessages, setGlobalMessages] = useState([])
   const [contacts, setContacts] = useState([])
   const [groups, setGroups] = useState([])
+
+  useEffect(() => {
+  const initFCM = async () => {
+    // 1. Minta izin notifikasi
+    const { receive } = await FCM.requestNotifications();
+    
+    if (receive === 'granted') {
+      // 2. Ambil Token unik HP ini
+      const token = await FCM.getToken();
+      
+      // 3. Simpan ke database Supabase agar server nanti tahu mau kirim notif ke siapa
+      await supabase
+        .from('profiles')
+        .update({ fcm_token: token.token })
+        .eq('id', session.user.id);
+    }
+  };
+  
+  initFCM();
+}, [session.user.id]);
 
   useEffect(() => {
     if (themeName === 'dark') {
@@ -1044,7 +1065,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                                 </div>
                                 <div className={`flex-1 min-w-0 border-b ${colors.border} pb-3 pt-1`}>
                                   <div className="flex justify-between items-center mb-1">
-                                     <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium'}`}>{c.contact_username}</h3>
+                                     <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-bold' : 'font-medium'}`}>{c.contact_username}</h3>
                                      <div className="flex gap-2 items-center">
                                         {unreadCount > 0 && <div className={`${colors.primary} text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm`}>{unreadCount}</div>}
                                      </div>
