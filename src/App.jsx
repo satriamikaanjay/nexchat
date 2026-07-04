@@ -6,6 +6,8 @@ import myIcon from '../public/favicon.svg';
 import StickerMaker from './StickerMaker';
 import DeleteAccountModal from './DeleteAccountModal';
 import GroupManager from './GroupManager';
+import logoImg from './assets/logo.png';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 
 // ================= IKON SVG MODERN =================
@@ -389,7 +391,33 @@ export default function App() {
   return <MainApp session={session} myProfile={myProfile} setMyProfile={setMyProfile} />
 }
 
+
+
 function MainApp({ session, myProfile, setMyProfile }) {
+  useEffect(() => {
+    const setupNotifications = async () => {
+      // Meminta izin notifikasi ke user (akan muncul pop-up di HP)
+      await LocalNotifications.requestPermissions();
+
+      // Mendengarkan saat notifikasi diklik
+      LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+        const payload = action.notification.extra;
+        if (payload && payload.chat_id) {
+          // Arahkan user ke halaman chat
+          setActiveMenu('chat');
+          // Jika kamu punya state 'activeChat', kamu bisa set di sini agar langsung membuka ruang obrolannya
+          // setActiveChat({ id: payload.chat_id, ... }); 
+        }
+      });
+    };
+
+    setupNotifications();
+    
+    // Cleanup listener
+    return () => {
+      LocalNotifications.removeAllListeners();
+    };
+  }, []);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [themeName, setThemeName] = useState(localStorage.getItem('app_theme') || 'dark')
   const [language, setLanguage] = useState(localStorage.getItem('app_lang') || 'id')
@@ -490,12 +518,12 @@ function MainApp({ session, myProfile, setMyProfile }) {
     return initialTaskState;
   });
 
-  const [points, setPoints] = useState(() => parseInt(localStorage.getItem(`points_${session.user.id}`) || '0'));
+  
 
   useEffect(() => {
     localStorage.setItem(`tasks_${session.user.id}`, JSON.stringify(taskData));
-    localStorage.setItem(`points_${session.user.id}`, points.toString());
-  }, [taskData, points, session.user.id]);
+    // localStorage.setItem(`points_${session.user.id}`, points.toString()); // <-- Hapus baris ini juga
+  }, [taskData, session.user.id]);
 
   useEffect(() => {
     const contactsChannel = supabase.channel('realtime-contacts-delete')
@@ -529,9 +557,19 @@ function MainApp({ session, myProfile, setMyProfile }) {
     return () => clearInterval(interval);
   }, []);
 
-  const claimTask = (taskKey) => {
+  const claimTask = async (taskKey) => {
+    // 1. Update status task di UI (lokal)
     setTaskData(prev => ({ ...prev, [taskKey]: true }));
-    setPoints(prev => prev + 5);
+    
+    // 2. Kalkulasi poin baru (ambil dari myProfile, default 0)
+    const currentPoints = myProfile.points || 0;
+    const newPoints = currentPoints + 5;
+    
+    // 3. Update profil di UI agar angka langsung berubah (Optimistic Update)
+    setMyProfile(prev => ({ ...prev, points: newPoints }));
+    
+    // 4. Simpan poin terbaru secara permanen ke Supabase
+    await supabase.from('profiles').update({ points: newPoints }).eq('id', session.user.id);
   };
   // ========================================================
   
@@ -553,6 +591,8 @@ function MainApp({ session, myProfile, setMyProfile }) {
 
   const handleSwitchChat = (chat) => {
     setActiveChat(chat);
+    // Bersihkan notifikasi saat berpindah obrolan
+    LocalNotifications.removeAllDeliveredNotifications();
   }
 
   const isMainPage = ['chat', 'groups', 'tasks'].includes(activeMenu);
@@ -672,6 +712,38 @@ function MainApp({ session, myProfile, setMyProfile }) {
         if (blockedIds.includes(msg.sender_id)) return;
         setHiddenIds(prev => prev.includes(msg.sender_id) ? prev.filter(id => id !== msg.sender_id) : prev);
         
+        // ================= LOGIKA NOTIFIKASI =================
+        // Pastikan pesan bukan dari diri kita sendiri
+        if (msg.sender_id !== myProfile.chat_id) {
+            // Tentukan isi notifikasi berdasarkan tipe media
+            let notifBody = msg.content || 'Pesan baru';
+            
+            if (msg.media_files && msg.media_files.length > 0) {
+                const mediaType = msg.media_files[0].type;
+                if (mediaType === 'sticker') notifBody = '🌟 Mengirim Stiker';
+                else if (mediaType === 'image') notifBody = '📷 Mengirim Foto';
+                else if (mediaType === 'video') notifBody = '🎥 Mengirim Video';
+                else if (mediaType === 'document') notifBody = '📄 Mengirim Dokumen';
+            }
+
+            // Tentukan apakah pesan ini dari grup atau personal
+            const isGroup = msg.receiver_id?.startsWith('grp_');
+            const notifTitle = isGroup ? `Grup Baru` : `Pesan Baru`;
+
+            // Jadwalkan Notifikasi
+            LocalNotifications.schedule({
+                notifications: [
+                    {
+                        title: notifTitle,
+                        body: notifBody,
+                        id: Math.floor(Math.random() * 100000), // ID unik
+                        schedule: { at: new Date(Date.now() + 100) } // Muncul seketika
+                    }
+                ]
+            });
+        }
+        // =====================================================
+
         // Pastikan tidak ada pesan ganda dari temp update
         setGlobalMessages((prev) => {
           const isExist = prev.some(m => m.id === msg.id);
@@ -856,7 +928,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                     <div>
                       {/* Judul Statis Warna Hijau (Tanpa Hover) */}
                       <h1 className="font-black text-xl leading-tight tracking-tight text-[#0C8F5B] dark:text-[#78C951]">NexChat</h1>
-                      <p className={`text-[11px] font-bold text-[#0C8F5B] dark:text-[#78C951]`}>{points} {t.points}</p>
+                      <p className={`text-[11px] font-bold text-[#0C8F5B] dark:text-[#78C951]`}>{myProfile.points || 0} {t.points}</p>
                     </div>
                 </div>
                 
@@ -1009,7 +1081,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                      <div className="absolute top-[-50%] right-[-10%] w-[200px] h-[200px] bg-white/10 rounded-full blur-2xl"></div>
                      <div className="relative z-10">
                         <p className="text-sm font-bold opacity-80 mb-1 uppercase tracking-wider">Total {t.points}</p>
-                        <h2 className="text-5xl font-black">{points}</h2>
+                        <h2 className="text-5xl font-black">{myProfile.points || 0}</h2>
                      </div>
                      <Icons.StarSolid className="w-20 h-20 opacity-20 relative z-10 drop-shadow-lg" />
                   </div>
@@ -1054,17 +1126,16 @@ function MainApp({ session, myProfile, setMyProfile }) {
             )}
 
             {activeMenu.startsWith('settings') && (
-              <SettingsManager 
-                 activeMenu={activeMenu} setActiveMenu={setActiveMenu} 
-                 session={session} myProfile={myProfile} setMyProfile={setMyProfile} 
-                 themeName={themeName} setThemeName={setThemeName} 
-                 language={language} setLanguage={setLanguage}
-                 colors={colors} openConfirm={openConfirm} t={t}
-                 points={points} setPoints={setPoints} 
-                 taskData={taskData} setTaskData={setTaskData}
-                 setIsDeleteModalOpen={setIsDeleteModalOpen} 
-              />
-            )}
+  <SettingsManager 
+     activeMenu={activeMenu} setActiveMenu={setActiveMenu} 
+     session={session} myProfile={myProfile} setMyProfile={setMyProfile} 
+     themeName={themeName} setThemeName={setThemeName} 
+     language={language} setLanguage={setLanguage}
+     colors={colors} openConfirm={openConfirm} t={t}
+     taskData={taskData} setTaskData={setTaskData}
+     setIsDeleteModalOpen={setIsDeleteModalOpen} 
+  />
+)}
 
             {activeMenu === 'about' && (
                <div className={`p-6 bg-transparent min-h-full animate-in slide-in-from-right-4`}>
@@ -1075,7 +1146,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                    
                    <div className="flex flex-col items-center justify-center mt-6 mb-8 text-center">
                      <div className="w-24 h-24 bg-white dark:bg-gradient-to-br dark:from-[#13281E] dark:to-[#0A1710] border border-gray-100 dark:border-white/10 rounded-3xl flex items-center justify-center shadow-xl mb-4">
-                       <img src="./public/logo.png" alt="NexChat Logo" className="w-12 h-12" />
+                       <img src={logoImg} alt="NexChat Logo" className="w-12 h-12" />
                      </div>
                      <h2 className="text-2xl font-black tracking-tight mb-1">NexChat Spatial</h2>
                      <p className={`font-bold text-xs ${colors.textMuted} bg-black/5 dark:bg-white/5 border ${colors.border} px-3 py-1 rounded-full inline-block`}>Versi 3.0 (Update Terbaru)</p>
@@ -1099,7 +1170,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                       <button onClick={() => window.open('https://nexchat-eight.vercel.app/', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-[#0C8F5B] text-[#0C8F5B] dark:border-[#78C951] dark:text-[#78C951] hover:bg-[#0C8F5B]/10 dark:hover:bg-[#78C951]/10 transition-all text-center`}>
                         <Icons.Globe className="w-4 h-4" /> Versi Web
                       </button>
-                      <button onClick={() => window.open('https://satriamika.my.id/download/nexchat.apk', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F] shadow-lg hover:opacity-90 transition-all text-center`}>
+                      <button onClick={() => window.open('https://github.com/satriamikaanjay/nexchat/releases/download/v1.1/NexChat.apk', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F] shadow-lg hover:opacity-90 transition-all text-center`}>
                         <Icons.Smartphone className="w-4 h-4" /> Versi APK
                       </button>
                    </div>
@@ -1323,7 +1394,8 @@ function SettingsManager({ activeMenu, setActiveMenu, session, myProfile, setMyP
 
   if (activeMenu === 'settings-theme') {
      const handleUploadWallpaper = async (e) => {
-    if (points < 50) {
+    // 1. Cek Poin dari Database
+    if ((myProfile.points || 0) < 50) {
         alert(t.notEnoughPts);
         return;
     }
@@ -1333,26 +1405,33 @@ function SettingsManager({ activeMenu, setActiveMenu, session, myProfile, setMyP
     
     setIsUploadingWP(true);
     
-    // 1. Upload file ke bucket 'avatars' di Supabase Storage
+    // 2. Upload file ke Supabase Storage
     const fileExt = file.name.split('.').pop();
     const filePath = `${session.user.id}/wallpaper_${Date.now()}.${fileExt}`;
     const { error } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
     
     if (!error) {
-       // 2. Dapatkan public URL dari file yang baru di-upload
        const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
        
-       // 3. UPDATE KE DATABASE agar tersimpan permanen di profil user
+       // 3. Kurangi Poin
+       const newPoints = (myProfile.points || 0) - 50;
+       
+       // 4. Update Wallpaper & Poin bersamaan di Supabase
        const { error: updateError } = await supabase
          .from('profiles')
-         .update({ chat_wallpaper: data.publicUrl })
+         .update({ 
+            chat_wallpaper: data.publicUrl,
+            points: newPoints 
+         })
          .eq('id', session.user.id);
        
        if (!updateError) {
-           setMyProfile({...myProfile, chat_wallpaper: data.publicUrl});
-           setPoints(points - 50); 
+           // 5. Update UI
+           setMyProfile({...myProfile, chat_wallpaper: data.publicUrl, points: newPoints});
            alert('Wallpaper berhasil diupdate dan tersimpan permanen!');
        }
+    } else {
+       alert('Gagal mengunggah gambar.');
     }
     setIsUploadingWP(false);
 }
@@ -2005,6 +2084,16 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
       created_at: nowIso 
     };
 
+    if (taskData && setTaskData && activeChat.contact_id) {
+       setTaskData(prev => {
+          // Jika ID teman belum ada di list dan belum mencapai 5 teman
+          if (!prev.chatProgress.includes(activeChat.contact_id) && prev.chatProgress.length < 5) {
+             return { ...prev, chatProgress: [...prev.chatProgress, activeChat.contact_id] };
+          }
+          return prev;
+       });
+    }
+
     // Optimistic UI Update
     setGlobalMessages(prev => [...prev, { ...payload, id: tempId }]); 
     
@@ -2049,6 +2138,9 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
     if (unreadMsgs.length > 0) {
       setGlobalMessages(prev => prev.map(m => unreadMsgs.find(u => u.id === m.id) ? { ...m, is_read: true } : m));
       supabase.from('messages').update({ is_read: true }).in('id', unreadMsgs.map(m => m.id)).then();
+      
+      // HAPUS SEMUA NOTIFIKASI DI HP KARENA PESAN SUDAH DIBACA
+      LocalNotifications.removeAllDeliveredNotifications();
     }
   }, [activeChat, globalMessages, myProfile.chat_id, setGlobalMessages, isAtBottom])
   const getWallpaperStyle = () => {
