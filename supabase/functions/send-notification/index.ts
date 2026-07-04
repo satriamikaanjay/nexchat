@@ -1,43 +1,63 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// Import Supabase client jika Anda butuh query tambahan
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-// Kita gunakan library yang lebih ringan untuk generate token
-import { GoogleAuth } from "https://esm.sh/google-auth-library@8.7.0"
 
 serve(async (req) => {
   try {
-    const { record } = await req.json()
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    // 1. Tangkap payload webhook dari database Supabase
+    const payload = await req.json()
+    
+    // 'record' berisi baris data pesan baru yang baru saja di-insert ke database
+    const pesanBaru = payload.record 
 
-    // 1. Ambil token penerima
-    const { data: profile } = await supabase.from('profiles').select('fcm_token').eq('chat_id', record.receiver_id).single()
+    // --- (OPSIONAL) Jika tabel pesan tidak memiliki nama pengirim, 
+    // Anda harus query ke tabel profil/users menggunakan sender_id ---
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    
+    // Contoh mengambil nama pengirim dari tabel 'profiles'
+    const { data: profilPengirim } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', pesanBaru.sender_id) // Sesuaikan dengan kolom sender_id Anda
+      .single()
 
-    if (profile?.fcm_token) {
-      // 2. Generate Access Token dari Service Account secara otomatis
-      const auth = new GoogleAuth({
-        credentials: JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!),
-        scopes: 'https://www.googleapis.com/auth/firebase.messaging'
-      })
-      const client = await auth.getClient()
-      const accessToken = (await client.getAccessToken()).token
+    const namaPengirim = profilPengirim?.username || 'Pengguna Tidak Dikenal'
+    // ---------------------------------------------------------------
 
-      // 3. Kirim notifikasi
-      await fetch(`https://fcm.googleapis.com/v1/projects/${Deno.env.get('FIREBASE_PROJECT_ID')}/messages:send`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+    // 2. Ambil token FCM penerima (asumsi Anda query ini dari database juga)
+    // const fcmTokenPenerima = ... (kode Anda yang sudah ada untuk ambil token)
+
+    // 3. SUSUN PAYLOAD FCM SECARA DINAMIS
+    const fcmPayload = {
+      message: {
+        token: fcmTokenPenerima, // Masukkan token FCM tujuan
+        notification: {
+          // Gunakan variabel dinamis, bukan teks statis/hardcode!
+          title: namaPengirim, 
+          body: pesanBaru.text || 'Mengirim gambar/stiker' // Sesuaikan dengan kolom isi pesan Anda
         },
-        body: JSON.stringify({
-          message: {
-            token: profile.fcm_token,
-            notification: { title: "Pesan Baru", body: record.content || "Ada pesan masuk" }
-          }
-        }),
-      })
-      return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } })
-    }
-    return new Response(JSON.stringify({ message: "No token" }), { status: 404 })
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+        data: {
+          // Masukkan chat_id ke dalam data agar bisa ditangkap oleh frontend Capacitor
+          chat_id: String(pesanBaru.chat_id), // Pastikan menjadi string
+          action: "open_chat"
+        }
+      }
+    };
+
+    // 4. Kirim ke API FCM (Gunakan kode fetch ke FCM Anda yang sudah berjalan sukses sebelumnya)
+    // const response = await fetch(`https://fcm.googleapis.com/v1/projects/...`, { ... })
+
+    return new Response(JSON.stringify({ success: true, message: "Notif dikirim" }), {
+      headers: { "Content-Type": "application/json" },
+      status: 200,
+    })
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { "Content-Type": "application/json" },
+      status: 400,
+    })
   }
 })

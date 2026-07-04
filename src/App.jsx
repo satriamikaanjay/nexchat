@@ -7,8 +7,9 @@ import StickerMaker from './StickerMaker';
 import DeleteAccountModal from './DeleteAccountModal';
 import GroupManager from './GroupManager';
 import logoImg from './assets/logo.png';
-import { LocalNotifications } from '@capacitor/local-notifications';
 import { FCM } from "@capacitor-community/fcm";
+import { PushNotifications } from '@capacitor/push-notifications';
+  
 
 
 // ================= IKON SVG MODERN =================
@@ -398,14 +399,13 @@ function MainApp({ session, myProfile, setMyProfile }) {
   useEffect(() => {
     const setupNotifications = async () => {
       // Meminta izin notifikasi ke user (akan muncul pop-up di HP)
-      await LocalNotifications.requestPermissions();
+      await PushNotifications.requestPermissions();
 
       // Mendengarkan saat notifikasi diklik
-      LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-        const payload = action.notification.extra;
+      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        const payload = action.notification.data;
         if (payload && payload.chat_id) {
-          // Arahkan user ke halaman chat
-          setActiveMenu('chat');
+    setActiveMenu('chat');
           // Jika kamu punya state 'activeChat', kamu bisa set di sini agar langsung membuka ruang obrolannya
           // setActiveChat({ id: payload.chat_id, ... }); 
         }
@@ -416,7 +416,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
     
     // Cleanup listener
     return () => {
-      LocalNotifications.removeAllListeners();
+      PushNotifications.removeAllListeners();
     };
   }, []);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -432,12 +432,20 @@ function MainApp({ session, myProfile, setMyProfile }) {
 
   useEffect(() => {
   const initFCM = async () => {
-    // 1. Minta izin notifikasi
-    const { receive } = await FCM.requestNotifications();
+  // 1. Minta izin push notification secara eksplisit
+  let permStatus = await PushNotifications.checkPermissions();
+
+  if (permStatus.receive === 'prompt') {
+    permStatus = await PushNotifications.requestPermissions();
+  }
+
+  if (permStatus.receive === 'granted') {
+    // 2. Registrasi ke FCM
+    await PushNotifications.register();
     
-    if (receive === 'granted') {
-      // 2. Ambil Token unik HP ini
-      const token = await FCM.getToken();
+    // 3. Ambil token
+    const token = await FCM.getToken();
+    console.log("FCM Token:", token.token);
       
       // 3. Simpan ke database Supabase agar server nanti tahu mau kirim notif ke siapa
       await supabase
@@ -1065,7 +1073,9 @@ function MainApp({ session, myProfile, setMyProfile }) {
                                 </div>
                                 <div className={`flex-1 min-w-0 border-b ${colors.border} pb-3 pt-1`}>
                                   <div className="flex justify-between items-center mb-1">
-                                     <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-bold' : 'font-medium'}`}>{c.contact_username}</h3>
+                                     <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-bold' : 'font-medium'} text-gray-900 dark:text-white`}>
+  {c.contact_username}
+</h3>
                                      <div className="flex gap-2 items-center">
                                         {unreadCount > 0 && <div className={`${colors.primary} text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm`}>{unreadCount}</div>}
                                      </div>
