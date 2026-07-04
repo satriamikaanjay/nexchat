@@ -1073,7 +1073,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
                                 </div>
                                 <div className={`flex-1 min-w-0 border-b ${colors.border} pb-3 pt-1`}>
                                   <div className="flex justify-between items-center mb-1">
-                                     <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-bold' : 'font-medium'} text-gray-900 dark:text-white`}>
+                                     <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-bold' : 'font-medium'} ${colors.text}`}>
   {c.contact_username}
 </h3>
                                      <div className="flex gap-2 items-center">
