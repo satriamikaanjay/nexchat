@@ -1,55 +1,95 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-// Import Supabase client jika Anda butuh query tambahan
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { JWT } from 'npm:google-auth-library' // Library untuk memproses Service Account Firebase otomatis
 
 serve(async (req) => {
   try {
-    // 1. Tangkap payload webhook dari database Supabase
     const payload = await req.json()
-    
-    // 'record' berisi baris data pesan baru yang baru saja di-insert ke database
-    const pesanBaru = payload.record 
+    const record = payload.record // Data pesan baru dari tabel 'messages'
 
-    // --- (OPSIONAL) Jika tabel pesan tidak memiliki nama pengirim, 
-    // Anda harus query ke tabel profil/users menggunakan sender_id ---
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    
-    // Contoh mengambil nama pengirim dari tabel 'profiles'
-    const { data: profilPengirim } = await supabase
+    // Abaikan jika tidak ada pengirim atau penerima
+    if (!record.receiver_id || !record.sender_id) {
+       return new Response("Data pesan tidak lengkap", { status: 400 })
+    }
+
+    // Abaikan notifikasi untuk grup (sementara kita fokus ke chat personal agar jalan dulu)
+    if (record.receiver_id.startsWith('grp_')) {
+       return new Response("Notifikasi grup di-skip", { status: 200 })
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // 1. Ambil Nama Pengirim untuk Judul Notifikasi
+    const { data: senderProfile } = await supabase
       .from('profiles')
       .select('username')
-      .eq('id', pesanBaru.sender_id) // Sesuaikan dengan kolom sender_id Anda
+      .eq('chat_id', record.sender_id)
+      .single()
+    
+    const senderName = senderProfile?.username || 'Pesan Baru'
+
+    // 2. Ambil FCM Token milik Penerima
+    const { data: receiverProfile } = await supabase
+      .from('profiles')
+      .select('fcm_token')
+      .eq('chat_id', record.receiver_id)
       .single()
 
-    const namaPengirim = profilPengirim?.username || 'Pengguna Tidak Dikenal'
-    // ---------------------------------------------------------------
+    const fcmToken = receiverProfile?.fcm_token
 
-    // 2. Ambil token FCM penerima (asumsi Anda query ini dari database juga)
-    // const fcmTokenPenerima = ... (kode Anda yang sudah ada untuk ambil token)
+    if (!fcmToken) {
+      return new Response("Penerima tidak memiliki FCM Token (Mungkin belum login/buka apk)", { status: 200 })
+    }
 
-    // 3. SUSUN PAYLOAD FCM SECARA DINAMIS
+    // 3. Generate Access Token Firebase secara On-The-Fly menggunakan Secret Service Account
+    const serviceAccountStr = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
+    if (!serviceAccountStr) throw new Error("Secret FIREBASE_SERVICE_ACCOUNT belum dipasang di Supabase!")
+    
+    const serviceAccount = JSON.parse(serviceAccountStr)
+    const client = new JWT({
+      email: serviceAccount.client_email,
+      key: serviceAccount.private_key,
+      scopes: ['https://www.googleapis.com/auth/firebase.messaging']
+    })
+    const token = await client.getAccessToken()
+
+    // 4. SUSUN PAYLOAD FCM - INI KUNCI AGAR NOTIF MUNCUL SAAT APK DITUTUP
     const fcmPayload = {
       message: {
-        token: fcmTokenPenerima, // Masukkan token FCM tujuan
+        token: fcmToken,
         notification: {
-          // Gunakan variabel dinamis, bukan teks statis/hardcode!
-          title: namaPengirim, 
-          body: pesanBaru.text || 'Mengirim gambar/stiker' // Sesuaikan dengan kolom isi pesan Anda
+          title: senderName,
+          body: record.content || '📷 Mengirim media baru'
+        },
+        android: {
+          priority: 'high', // MEMAKSA ANDROID MEMBANGUNKAN HP WALAUPUN LAYAR MATI
+          notification: {
+            sound: 'default'
+          }
         },
         data: {
-          // Masukkan chat_id ke dalam data agar bisa ditangkap oleh frontend Capacitor
-          chat_id: String(pesanBaru.chat_id), // Pastikan menjadi string
+          chat_id: record.sender_id,
           action: "open_chat"
         }
       }
-    };
+    }
 
-    // 4. Kirim ke API FCM (Gunakan kode fetch ke FCM Anda yang sudah berjalan sukses sebelumnya)
-    // const response = await fetch(`https://fcm.googleapis.com/v1/projects/...`, { ... })
+    // 5. Eksekusi Pengiriman ke FCM Google
+    const fcmRes = await fetch(`https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(fcmPayload)
+    })
 
-    return new Response(JSON.stringify({ success: true, message: "Notif dikirim" }), {
+    const fcmData = await fcmRes.json()
+
+    return new Response(JSON.stringify({ success: true, response: fcmData }), {
       headers: { "Content-Type": "application/json" },
       status: 200,
     })
@@ -57,7 +97,7 @@ serve(async (req) => {
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { "Content-Type": "application/json" },
-      status: 400,
+      status: 500,
     })
   }
 })
