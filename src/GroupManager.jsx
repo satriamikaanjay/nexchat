@@ -137,7 +137,7 @@ export default function GroupManager({ session, myProfile, colors, activeChat, s
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1">
-                    <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-black text-gray-900 dark:text-white' : 'font-bold'}`}>
+                    <h3 className={`text-base truncate ${unreadCount > 0 ? 'font-black ${colors.text}' : 'font-bold'}`}>
                       {grp.name}
                       {/* LABEL BARU (Jika belum join) */}
                       {!isJoined && (

@@ -398,25 +398,41 @@ export default function App() {
 function MainApp({ session, myProfile, setMyProfile }) {
   useEffect(() => {
     const setupNotifications = async () => {
-      // Meminta izin notifikasi ke user (akan muncul pop-up di HP)
       await PushNotifications.requestPermissions();
 
-      // Mendengarkan saat notifikasi diklik
-      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
         const payload = action.notification.data;
         if (payload && payload.chat_id) {
-    setActiveMenu('chat');
-          // Jika kamu punya state 'activeChat', kamu bisa set di sini agar langsung membuka ruang obrolannya
-          // setActiveChat({ id: payload.chat_id, ... }); 
+          
+          // 1. Arahkan ke menu yang tepat
+          setActiveMenu(payload.type === 'group' ? 'groups' : 'chat');
+
+          // 2. Fetch data kontak/grup dari Supabase agar bisa langsung dirender
+          if (payload.type === 'group') {
+            const { data } = await supabase.from('groups').select('*').eq('id', payload.chat_id).single();
+            if (data) {
+               setActiveChat({ 
+                 contact_id: data.id, 
+                 contact_username: data.name, 
+                 avatar_url: data.avatar_url, 
+                 type: 'group', 
+                 admin_id: data.admin_id 
+               });
+            }
+          } else {
+            const { data } = await supabase.from('profiles').select('*').eq('chat_id', payload.chat_id).single();
+            if (data) {
+               setActiveChat({ 
+                 contact_id: data.chat_id, 
+                 contact_username: data.username, 
+                 avatar_url: data.avatar_url, 
+                 type: 'personal', 
+                 bio: data.bio 
+               });
+            }
+          }
         }
       });
-    };
-
-    setupNotifications();
-    
-    // Cleanup listener
-    return () => {
-      PushNotifications.removeAllListeners();
     };
   }, []);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -536,22 +552,44 @@ function MainApp({ session, myProfile, setMyProfile }) {
   };
 
   const [taskData, setTaskData] = useState(() => {
+    // 1. PRIORITAS UTAMA: Ambil data dari Database Supabase (Cloud)
+    if (myProfile?.daily_tasks) {
+      const dbTasks = myProfile.daily_tasks;
+      // Jika tanggal di database SAMA dengan hari ini, lanjutkan progress-nya
+      if (dbTasks.date === todayDate) {
+        return dbTasks;
+      }
+      // Jika BEDA HARI, abaikan data lama dan mulai ulang dari awal (reset)
+      return initialTaskState;
+    }
+    
+    // 2. BACKUP: Cek local storage jika database kosong (untuk user pertama kali transisi)
     const saved = localStorage.getItem(`tasks_${session.user.id}`);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Hapus pengecekan tanggal. 
-      // Langsung kembalikan data yang tersimpan agar progress tidak hangus,
-      // sambil memperbarui tanggalnya menjadi hari ini.
-      return { ...parsed, date: todayDate }; 
+      if (parsed.date === todayDate) return parsed;
     }
+    
     return initialTaskState;
   });
 
-  
-
+  // 3. SINKRONISASI: Simpan progress ke Cloud setiap kali ada perubahan
   useEffect(() => {
+    const syncTasksToDatabase = async () => {
+      // Update kolom 'daily_tasks' di tabel profiles agar sinkron di semua HP
+      await supabase
+        .from('profiles')
+        .update({ daily_tasks: taskData })
+        .eq('id', session.user.id);
+    };
+
+    // Tetap simpan di local storage sebagai backup sementara
     localStorage.setItem(`tasks_${session.user.id}`, JSON.stringify(taskData));
-    // localStorage.setItem(`points_${session.user.id}`, points.toString()); // <-- Hapus baris ini juga
+    
+    // Kirim data terbaru ke Supabase
+    if (session?.user?.id) {
+      syncTasksToDatabase();
+    }
   }, [taskData, session.user.id]);
 
   useEffect(() => {
@@ -1573,6 +1611,11 @@ function SettingsManager({ activeMenu, setActiveMenu, session, myProfile, setMyP
 function ProfileEditor({ session, myProfile, setMyProfile, setActiveMenu, colors, t, taskData, setTaskData }) {
   const [newUsername, setNewUsername] = useState(myProfile.username)
   const [newBio, setNewBio] = useState(myProfile.bio || '')
+  
+  // State untuk Ganti Password
+  const [newPassword, setNewPassword] = useState('')
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+
   const [isSaving, setIsSaving] = useState(false); 
   const [isUploading, setIsUploading] = useState(false); 
   const fileInputRef = useRef(null)
@@ -1584,6 +1627,21 @@ function ProfileEditor({ session, myProfile, setMyProfile, setActiveMenu, colors
     if (!error) setMyProfile({ ...myProfile, username: newUsername, bio: newBio })
     setIsSaving(false)
     setActiveMenu('settings')
+  }
+
+  // Fungsi Ganti Password
+  const handleUpdatePassword = async () => {
+    if (!newPassword || newPassword.length < 6) return alert("Password minimal 6 karakter!");
+    setIsUpdatingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setIsUpdatingPassword(false);
+    
+    if (error) {
+      alert("Gagal memperbarui password: " + error.message);
+    } else {
+      alert("Password berhasil diperbarui!");
+      setNewPassword('');
+    }
   }
 
   const handleUploadAvatar = async (e) => {
@@ -1601,39 +1659,20 @@ function ProfileEditor({ session, myProfile, setMyProfile, setActiveMenu, colors
 
   const copyIDForTask = () => {
     const idToCopy = myProfile.chat_id || myProfile.id;
-    
-    // Coba clipboard API modern
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(idToCopy)
-            .then(() => alert('ID Tersalin: ' + idToCopy))
-            .catch(() => fallbackCopy(idToCopy));
-    } else {
-        fallbackCopy(idToCopy);
-    }
-    
-    setTaskData(prev => ({
-        ...prev, 
-        shareCount: Math.min(prev.shareCount + 1, 5)
-    }));
-};
+        navigator.clipboard.writeText(idToCopy).then(() => alert('ID Tersalin: ' + idToCopy)).catch(() => fallbackCopy(idToCopy));
+    } else { fallbackCopy(idToCopy); }
+    setTaskData(prev => ({ ...prev, shareCount: Math.min(prev.shareCount + 1, 5) }));
+  };
 
-// Fungsi pendukung jika Clipboard API gagal
-const fallbackCopy = (text) => {
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-        document.execCommand('copy');
-        alert('ID Tersalin: ' + text);
-    } catch (err) {
-        alert('Gagal menyalin ID.');
-    }
+  const fallbackCopy = (text) => {
+    const textArea = document.createElement("textarea"); textArea.value = text; document.body.appendChild(textArea); textArea.select();
+    try { document.execCommand('copy'); alert('ID Tersalin: ' + text); } catch (err) { alert('Gagal menyalin ID.'); }
     document.body.removeChild(textArea);
-};
+  };
 
   return (
-     <div className={`p-4 md:p-6 min-h-full animate-in slide-in-from-right-4 bg-transparent`}>
+     <div className={`p-4 md:p-6 min-h-full animate-in slide-in-from-right-4 bg-transparent pb-24`}>
        <div className="flex items-center gap-3 mb-8">
          <button onClick={() => setActiveMenu('settings')} className={`p-2.5 rounded-xl border ${colors.border} ${colors.panel} ${colors.hoverBg} transition-all`}><Icons.ArrowLeft /></button>
          <h2 className="text-xl font-bold">{t.profile}</h2>
@@ -1659,16 +1698,21 @@ const fallbackCopy = (text) => {
 
        <div className="space-y-4">
          
-         {/* KOLOM READ-ONLY (ID & EMAIL) */}
-         <div className={`p-6 rounded-[1.5rem] shadow-inner border ${colors.border} bg-gray-50/50 dark:bg-[#08100C]`}>
-    <label className={`block text-xs font-bold ${colors.textMuted} uppercase tracking-wider mb-2`}>Unique ID</label>
-    {/* Kita paksa menampilkan chat_id saja */}
-    <input type="text" readOnly value={myProfile.chat_id} className={`w-full py-2 bg-transparent outline-none text-lg md:text-xl font-black ${colors.text} cursor-not-allowed`} />
-</div>
+         {/* KOLOM READ-ONLY (ID & EMAIL) DENGAN GAYA BARU */}
+         <div className={`p-6 rounded-[1.5rem] shadow-sm border ${colors.border} ${colors.panel}`}>
+            <div className="flex justify-between items-center mb-2">
+               <label className={`block text-xs font-bold ${colors.textMuted} uppercase tracking-wider`}>Unique ID</label>
+               <span className="text-[9px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">Tidak bisa diganti</span>
+            </div>
+            <input type="text" readOnly value={myProfile.chat_id} className={`w-full border-b ${colors.border} py-2 bg-transparent outline-none text-lg md:text-xl font-black ${colors.text} cursor-not-allowed opacity-70`} />
+         </div>
 
-         <div className={`p-6 rounded-[1.5rem] shadow-inner border ${colors.border} bg-gray-50/50 dark:bg-[#08100C]`}>
-            <label className={`block text-xs font-bold ${colors.textMuted} uppercase tracking-wider mb-2`}>Alamat Email</label>
-            <input type="text" readOnly value={myProfile.email || session.user.email} className={`w-full py-2 bg-transparent outline-none text-base md:text-lg font-bold ${colors.textMuted} cursor-not-allowed`} />
+         <div className={`p-6 rounded-[1.5rem] shadow-sm border ${colors.border} ${colors.panel}`}>
+            <div className="flex justify-between items-center mb-2">
+               <label className={`block text-xs font-bold ${colors.textMuted} uppercase tracking-wider`}>Alamat Email</label>
+               <span className="text-[9px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">Tidak bisa diganti</span>
+            </div>
+            <input type="text" readOnly value={myProfile.email || session.user.email} className={`w-full border-b ${colors.border} py-2 bg-transparent outline-none text-base md:text-lg font-bold ${colors.text} cursor-not-allowed opacity-70`} />
          </div>
 
          {/* KOLOM EDITABLE (USERNAME & BIO) */}
@@ -1680,9 +1724,18 @@ const fallbackCopy = (text) => {
          <div className={`p-6 rounded-[1.5rem] shadow-sm border ${colors.border} ${colors.panel}`}>
             <label className={`block text-xs font-bold ${colors.textMuted} uppercase tracking-wider mb-2`}>Bio / Status</label>
             <input type="text" maxLength={150} value={newBio} onChange={(e) => setNewBio(e.target.value)} placeholder="Available" className={`w-full border-b ${colors.border} py-2 bg-transparent outline-none text-lg font-medium focus:border-[#78C951] transition-colors`} />
-            <div className={`text-[10px] text-right mt-2 font-bold tracking-widest ${newBio.length >= 150 ? 'text-red-500' : colors.textMuted}`}>
-               {newBio.length}/150
+         </div>
+
+         {/* KOLOM GANTI PASSWORD */}
+         <div className={`p-6 rounded-[1.5rem] shadow-sm border ${colors.border} ${colors.panel}`}>
+            <label className={`block text-xs font-bold ${colors.textMuted} uppercase tracking-wider mb-2`}>Ganti Password Baru</label>
+            <div className="flex gap-3">
+               <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Minimal 6 karakter" className={`w-full border-b ${colors.border} py-2 bg-transparent outline-none text-base font-medium focus:border-[#78C951] transition-colors`} />
+               <button onClick={handleUpdatePassword} disabled={isUpdatingPassword || newPassword.length < 6} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 ${colors.primary}`}>
+                 {isUpdatingPassword ? '...' : 'Update'}
+               </button>
             </div>
+            <p className="text-[10px] mt-2 opacity-70 italic">*(Kosongkan jika tidak ingin mengganti password)</p>
          </div>
          
          <button onClick={handleUpdateProfile} disabled={isSaving || !newUsername.trim()} className={`${colors.primary} w-full py-4 rounded-xl font-extrabold mt-6 shadow-lg disabled:opacity-50`}>
@@ -2577,16 +2630,30 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
                           <span className="text-[10px] font-black text-white text-center px-2 uppercase tracking-widest">{t.changeGroupPP}</span>
                         </div>
                         <input type="file" id="groupPPInput" accept="image/*" className="hidden" onChange={async (e) => { 
-                          const file = e.target.files[0]; if (!file) return;
-                          const fileExt = file.name.split('.').pop();
-                          const filePath = `groups/${activeChat.contact_id}_${Date.now()}.${fileExt}`;
-                          const { error } = await supabase.storage.from('avatars').upload(filePath, file);
-                          if (!error) {
-                            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-                            await supabase.from('groups').update({ avatar_url: data.publicUrl }).eq('id', activeChat.contact_id);
-                            setActiveChat({ ...activeChat, avatar_url: data.publicUrl });
-                          }
-                        }} />
+  const file = e.target.files[0]; if (!file) return;
+  const fileExt = file.name.split('.').pop();
+  const filePath = `groups/${activeChat.contact_id}_${Date.now()}.${fileExt}`;
+  
+  // Tambahkan UI Loading jika diperlukan (opsional)
+  const { error } = await supabase.storage.from('avatars').upload(filePath, file);
+  
+  if (!error) {
+    const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+    
+    // 1. Update ke Database
+    await supabase.from('groups').update({ avatar_url: data.publicUrl }).eq('id', activeChat.contact_id);
+    
+    // 2. Update state ruang chat yang sedang terbuka
+    setActiveChat({ ...activeChat, avatar_url: data.publicUrl });
+    
+    // 3. Update state global list grup agar sidebar ikut berubah seketika
+    if (setGroups) {
+       setGroups(prevGroups => prevGroups.map(g => g.id === activeChat.contact_id ? { ...g, avatar_url: data.publicUrl } : g));
+    }
+  } else {
+    alert("Gagal mengunggah foto grup!");
+  }
+}} />
                       </>
                     )}
                   </div>
