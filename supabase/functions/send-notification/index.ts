@@ -61,9 +61,10 @@ serve(async (req) => {
           token: fcmToken,
           notification: { title: chatTitle, body: record.content || '📷 Mengirim media baru' },
           android: { 
-            priority: 'high', 
-            notification: { sound: 'default', click_action: 'FCM_PLUGIN_ACTIVITY' } 
-          },
+  priority: 'high', 
+  // Hapus click_action, biarkan sistem Capacitor yang mengambil alih routing-nya
+  notification: { sound: 'default' } 
+},
           data: { 
             chat_id: actionChatId, // ID obrolan yang akan dibuka
             type: chatType // "group" atau "personal"

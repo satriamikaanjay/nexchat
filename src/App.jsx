@@ -1848,6 +1848,12 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
 
   const lastGroupMsgTimeRef = useRef(0);
 
+  const [favoriteStickers, setFavoriteStickers] = useState(() => {
+    const saved = localStorage.getItem('fav_stickers');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showFavStickers, setShowFavStickers] = useState(false);
+
   const scrollToMessage = (msgId) => {
     const element = document.getElementById(`msg-${msgId}`);
     if (element) {
@@ -2277,15 +2283,38 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
             <div className={`rounded-[1.5rem] shadow-2xl w-[280px] flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 zoom-in-95 border ${colors.border} ${colors.panel}`} onClick={e => e.stopPropagation()}>
                
                {contextMsg.media_files?.[0]?.type === 'sticker' ? (
-                 <>
-                   <button onClick={() => { alert('Stiker berhasil ditambahkan ke Favorit!'); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
-                     Tambah ke Favorit <Icons.Star />
-                   </button>
-                   <button onClick={() => { setIsStickerMakerOpen(true); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
-                     Buat stiker anda sendiri <Icons.Palette />
-                   </button>
-                 </>
-               ) : (
+  <>
+    {/* Logika Pengecekan Favorit */}
+    {(() => {
+       const stickerUrl = contextMsg.media_files[0].url;
+       const isFavorited = favoriteStickers.includes(stickerUrl);
+       
+       return (
+         <button onClick={() => { 
+           if (!isFavorited) {
+              const newFavs = [stickerUrl, ...favoriteStickers];
+              setFavoriteStickers(newFavs);
+              localStorage.setItem('fav_stickers', JSON.stringify(newFavs));
+              showToast("Stiker berhasil ditambahkan ke Favorit! ⭐");
+           } else {
+              const newFavs = favoriteStickers.filter(u => u !== stickerUrl);
+              setFavoriteStickers(newFavs);
+              localStorage.setItem('fav_stickers', JSON.stringify(newFavs));
+              showToast("Stiker dihapus dari Favorit.");
+           }
+           setContextMsg(null); 
+         }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
+           {isFavorited ? 'Hapus dari Favorit' : 'Tambah ke Favorit'} 
+           {isFavorited ? <Icons.StarSolid className="text-yellow-400 drop-shadow-md w-5 h-5" /> : <Icons.Star className="w-5 h-5" />}
+         </button>
+       );
+    })()}
+
+    <button onClick={() => { setIsStickerMakerOpen(true); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
+      Buat stiker anda sendiri <Icons.Palette className="w-5 h-5" />
+    </button>
+  </>
+) : (
                  <>
                    {contextMsg.media_files && contextMsg.media_files.length > 0 && (
                       <>
@@ -2448,8 +2477,9 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
                                     )
                                   }
                                   if (file.type === 'sticker') {
-                                    return <img key={idx} src={file.url} className="object-contain w-36 h-36 md:w-48 md:h-48 drop-shadow-2xl" alt="Stiker" />
-                                  }
+  // Tambahkan mb-4 (margin-bottom) agar ada ruang untuk teks waktu di bawahnya
+  return <img key={idx} src={file.url} className="object-contain w-36 h-36 md:w-48 md:h-48 drop-shadow-2xl mb-4" alt="Stiker" />
+}
                                   return (
                                     <div key={idx} className="relative rounded-xl overflow-hidden border border-white/10 bg-black/20 shadow-inner">
                                       {file.type === 'image' && (
@@ -2478,11 +2508,11 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
                                <p className="break-words whitespace-pre-wrap leading-relaxed tracking-wide">{msg.content}</p>
                             )}
 
-                            <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest self-end shrink-0 pt-2 -mb-1 ml-4 
-                              ${isSticker 
-                                  ? 'bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-full absolute bottom-1 right-1 border border-white/10' 
-                                  : 'opacity-60 float-right'}`}
-                            >
+                            <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest self-end shrink-0 pt-2 ml-4 
+  ${isSticker 
+      ? 'bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-full absolute -bottom-3 right-0 border border-white/10 z-10' 
+      : 'opacity-60 float-right -mb-1'}`}
+>
                               {msg.is_edited && <span className="italic mr-1">edited</span>}
                               <span>{timeString}</span>
                               {isMe && <span className={isSticker ? 'text-[#78C951]' : 'text-current'}>{msg.is_read ? <Icons.DoubleCheck className="w-4 h-4" /> : <Icons.Check className="w-4 h-4" />}</span>}
@@ -2552,6 +2582,43 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
                ))}
             </div>
           )}
+          {showFavStickers && (
+  <div className="flex gap-3 overflow-x-auto p-3 mx-2 mb-3 bg-black/5 dark:bg-white/5 rounded-2xl border border-white/10 scrollbar-hide">
+    {favoriteStickers.length === 0 ? (
+       <p className="text-xs text-gray-500 font-bold p-2 w-full text-center">Belum ada stiker favorit. Tahan stiker teman lalu simpan!</p>
+    ) : (
+       favoriteStickers.map((url, idx) => (
+         <div key={idx} className="relative group shrink-0">
+           {/* Mengirim stiker saat diklik */}
+           <img 
+             src={url} 
+             onClick={async () => {
+                const tempId = `temp-${Date.now()}`;
+                const payload = { sender_id: String(myProfile.chat_id), receiver_id: String(activeChat.contact_id), content: '', is_read: false, reply_to_id: replyingTo?.id || null, media_files: [{ url, type: 'sticker', name: 'fav_sticker.webp' }], created_at: new Date().toISOString() };
+                setGlobalMessages(prev => [...prev, { ...payload, id: tempId }]); 
+                setShowFavStickers(false);
+                setReplyingTo(null);
+                
+                const { error } = await supabase.from('messages').insert([payload]);
+                if (error) { showToast("Gagal mengirim stiker."); }
+                setGlobalMessages(prev => prev.filter(m => m.id !== tempId));
+             }} 
+             className="w-16 h-16 object-contain cursor-pointer hover:scale-110 transition-transform drop-shadow-md" alt="Fav" 
+           />
+           {/* Tombol Hapus dari Favorit */}
+           <button onClick={(e) => {
+              e.stopPropagation();
+              const newFavs = favoriteStickers.filter(u => u !== url);
+              setFavoriteStickers(newFavs);
+              localStorage.setItem('fav_stickers', JSON.stringify(newFavs));
+           }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+             <Icons.Plus className="w-3 h-3 rotate-45" />
+           </button>
+         </div>
+       ))
+    )}
+  </div>
+)}
 
           <form onSubmit={handleSendMessage} className="flex gap-3 items-end px-1">
             <input type="file" multiple ref={mediaInputRef} onChange={handleSendMedia} className="hidden" />
@@ -2562,7 +2629,15 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
               className={`p-3.5 rounded-xl ${colors.hoverBg} border ${colors.border} ${colors.textMuted} hover:text-[#0C8F5B] dark:hover:text-[#78C951] transition-all shrink-0`}
             >
               <Icons.Sticker className="w-6 h-6" />
+              
             </button>
+            <button 
+  type="button" 
+  onClick={() => setShowFavStickers(!showFavStickers)} 
+  className={`p-3.5 rounded-xl ${showFavStickers ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-500' : colors.hoverBg + ' ' + colors.textMuted} border ${colors.border} transition-all shrink-0`}
+>
+  <Icons.Star className="w-6 h-6" />
+</button>
             
             <div className={`flex-1 ${colors.inputBg} rounded-[1.5rem] min-h-[56px] flex items-center shadow-inner border ${colors.border} transition-all py-1.5 px-3 focus-within:border-[#0C8F5B] dark:focus-within:border-[#78C951] focus-within:ring-1 focus-within:ring-[#0C8F5B] dark:focus-within:ring-[#78C951]`}>
               <textarea 
