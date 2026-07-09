@@ -9,6 +9,7 @@ import GroupManager from './GroupManager';
 import logoImg from './assets/logo.png';
 import { FCM } from "@capacitor-community/fcm";
 import { PushNotifications } from '@capacitor/push-notifications';
+import heic2any from 'heic2any';
   
 
 
@@ -77,6 +78,50 @@ const Avatar = ({ url, name, size = 'w-10 h-10', className = '' }) => (
     </div>
   )
 )
+
+const handleSendMedia = async (e) => {
+  const files = Array.from(e.target.files);
+  if (files.length === 0) return;
+
+  const processedFiles = [];
+
+  for (const file of files) {
+    let fileToProcess = file;
+    let fileName = file.name;
+
+    // Cek apakah file adalah HEIC
+    if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+      try {
+        // Konversi HEIC ke Blob JPEG
+        const blob = await heic2any({
+          blob: file,
+          toType: "image/jpeg",
+          quality: 0.8 // Kualitas 80%
+        });
+        
+        // Ubah blob menjadi file yang bisa diunggah
+        fileName = file.name.replace(/\.[^/.]+$/, ".jpg");
+        fileToProcess = new File([blob], fileName, { type: "image/jpeg" });
+      } catch (err) {
+        console.error("Gagal convert HEIC:", err);
+      }
+    }
+
+    let fileType = 'document';
+    if (fileToProcess.type.startsWith('image/')) fileType = 'image';
+    else if (fileToProcess.type.startsWith('video/')) fileType = 'video';
+
+    processedFiles.push({
+      file: fileToProcess,
+      type: fileType,
+      name: fileName,
+      previewUrl: URL.createObjectURL(fileToProcess)
+    });
+  }
+
+  setStagedFiles(prev => [...prev, ...processedFiles]);
+  e.target.value = '';
+};
 
 const Modal = ({ isOpen, onClose, title, children, colors }) => {
   if (!isOpen) return null;
