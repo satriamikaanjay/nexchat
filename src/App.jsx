@@ -1349,7 +1349,12 @@ function MainApp({ session, myProfile, setMyProfile }) {
              </div>
           ) : (
             <ChatRoom 
-              key={activeChat.id || activeChat.contact_id} session={session} myProfile={myProfile} colors={colors} t={t}
+              key={activeChat.id || activeChat.contact_id} 
+              session={session} 
+              myProfile={myProfile} 
+              setMyProfile={setMyProfile} 
+              colors={colors} 
+              t={t}
               activeChat={activeChat} setActiveChat={setActiveChat} contacts={contacts} setContacts={setContacts} 
               globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} onlineUsers={onlineUsers}
               blockedIds={blockedIds} openConfirm={openConfirm} localDeletedMsgs={localDeletedMsgs} setLocalDeletedMsgs={setLocalDeletedMsgs}
@@ -1760,7 +1765,7 @@ function SettingsListItem({ icon, title, desc, onClick, colors, borderBottom = t
 }
 
 // ================= KOMPONEN RUANG OBROLAN MODERN =================
-function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, contacts, setContacts, globalMessages, setGlobalMessages, onlineUsers, blockedIds, openConfirm, localDeletedMsgs, setLocalDeletedMsgs, taskData, setTaskData, groups, setGroups }) {
+function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, setActiveChat, contacts, setContacts, globalMessages, setGlobalMessages, onlineUsers, blockedIds, openConfirm, localDeletedMsgs, setLocalDeletedMsgs, taskData, setTaskData, groups, setGroups }) {
   const [inputMessage, setInputMessage] = useState('')
   const [typingUserId, setTypingUserId] = useState(null)
   const [pendingMessages, setPendingMessages] = useState([])
@@ -1851,7 +1856,8 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
 
   const lastGroupMsgTimeRef = useRef(0);
 
-const [favoriteStickers, setFavoriteStickers] = useState(myProfile?.favorite_stickers || []);
+// GANTI MENJADI INI:
+  const [favoriteStickers, setFavoriteStickers] = useState(myProfile?.favorite_stickers || []);
   const [showFavStickers, setShowFavStickers] = useState(false);
 
   const scrollToMessage = (msgId) => {
@@ -2290,19 +2296,30 @@ const [favoriteStickers, setFavoriteStickers] = useState(myProfile?.favorite_sti
        const isFavorited = favoriteStickers.includes(stickerUrl);
        
        return (
-         <button onClick={() => { 
-           if (!isFavorited) {
-              const newFavs = [stickerUrl, ...favoriteStickers];
-              setFavoriteStickers(newFavs);
-              localStorage.setItem('fav_stickers', JSON.stringify(newFavs));
-              showToast("Stiker berhasil ditambahkan ke Favorit! ⭐");
-           } else {
-              const newFavs = favoriteStickers.filter(u => u !== stickerUrl);
-              setFavoriteStickers(newFavs);
-              localStorage.setItem('fav_stickers', JSON.stringify(newFavs));
-              showToast("Stiker dihapus dari Favorit.");
+         <button onClick={async () => { 
+           // 1. Siapkan data stiker baru
+           const newFavs = !isFavorited 
+              ? [stickerUrl, ...favoriteStickers] 
+              : favoriteStickers.filter(u => u !== stickerUrl);
+           
+           // 2. Update UI secara instan
+           setFavoriteStickers(newFavs);
+           if (setMyProfile) {
+              setMyProfile(prev => ({ ...prev, favorite_stickers: newFavs }));
            }
            setContextMsg(null); 
+           
+           // 3. Simpan permanen ke Supabase
+           const { error } = await supabase
+              .from('profiles')
+              .update({ favorite_stickers: newFavs })
+              .eq('id', session.user.id);
+              
+           if (error) {
+              alert("Database Error: " + error.message);
+           } else {
+              showToast(!isFavorited ? "Stiker berhasil ditambahkan ke Favorit! ⭐" : "Stiker dihapus dari Favorit.");
+           }
          }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
            {isFavorited ? 'Hapus dari Favorit' : 'Tambah ke Favorit'} 
            {isFavorited ? <Icons.StarSolid className="text-yellow-400 drop-shadow-md w-5 h-5" /> : <Icons.Star className="w-5 h-5" />}
@@ -2631,14 +2648,35 @@ const [favoriteStickers, setFavoriteStickers] = useState(myProfile?.favorite_sti
            />
            {/* Tombol Hapus dari Favorit */}
            <button onClick={async (e) => {
-              e.stopPropagation();
-              const newFavs = favoriteStickers.filter(u => u !== url);
-              setFavoriteStickers(newFavs);
-              // Hapus dari Supabase
-              await supabase.from('profiles').update({ favorite_stickers: newFavs }).eq('id', session.user.id);
-           }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-             <Icons.Plus className="w-3 h-3 rotate-45" />
-           </button>
+   e.stopPropagation();
+   try {
+     const newFavs = favoriteStickers.filter(u => u !== url);
+     
+     // Update UI Instan
+     setFavoriteStickers(newFavs);
+     if (setMyProfile) {
+        setMyProfile(prev => ({ ...prev, favorite_stickers: newFavs }));
+     }
+     
+     // Hapus dari DB
+     const { data, error } = await supabase
+        .from('profiles')
+        .update({ favorite_stickers: newFavs })
+        .eq('id', myProfile.id)
+        .select();
+        
+     if (error) {
+        alert("Gagal menghapus dari database: " + error.message);
+        setFavoriteStickers(favoriteStickers);
+     } else if (!data || data.length === 0) {
+        alert("Gagal menghapus! ID Profil tidak ditemukan.");
+     }
+   } catch (err) {
+     alert("Error Sistem: " + err.message);
+   }
+}} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity cursor-pointer">
+  <Icons.Plus className="w-3 h-3 rotate-45" />
+</button>
          </div>
        ))
     )}
@@ -2790,24 +2828,43 @@ const [favoriteStickers, setFavoriteStickers] = useState(myProfile?.favorite_sti
                   
                   {activeChat.admin_id === myProfile.chat_id && (
                     <button onClick={async () => { 
-           if (!isFavorited) {
-              const newFavs = [stickerUrl, ...favoriteStickers];
-              setFavoriteStickers(newFavs);
-              // Simpan ke Supabase
-              await supabase.from('profiles').update({ favorite_stickers: newFavs }).eq('id', session.user.id);
-              showToast("Stiker berhasil ditambahkan ke Favorit! ⭐");
-           } else {
-              const newFavs = favoriteStickers.filter(u => u !== stickerUrl);
-              setFavoriteStickers(newFavs);
-              // Simpan ke Supabase
-              await supabase.from('profiles').update({ favorite_stickers: newFavs }).eq('id', session.user.id);
-              showToast("Stiker dihapus dari Favorit.");
-           }
-           setContextMsg(null); 
-         }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
-                      <span className="tracking-wide">{t.addMember}</span>
-                      <Icons.Plus className="w-6 h-6" />
-                    </button>
+  try {
+    const newFavs = !isFavorited 
+       ? [stickerUrl, ...favoriteStickers] 
+       : favoriteStickers.filter(u => u !== stickerUrl);
+    
+    // 1. Update UI secara Instan
+    setFavoriteStickers(newFavs);
+    if (setMyProfile) {
+       setMyProfile(prev => ({ ...prev, favorite_stickers: newFavs }));
+    }
+    setContextMsg(null); 
+    
+    // 2. Simpan ke DB (Gunakan myProfile.id dan .select() untuk memaksa balasan dari server)
+    const { data, error } = await supabase
+       .from('profiles')
+       .update({ favorite_stickers: newFavs })
+       .eq('id', myProfile.id)
+       .select();
+       
+    // 3. Sistem Deteksi Error Akurat
+    if (error) {
+       alert("Error Database: " + error.message);
+       // Kembalikan UI jika gagal
+       setFavoriteStickers(favoriteStickers); 
+    } else if (!data || data.length === 0) {
+       alert("Gagal Menyimpan! ID Profil tidak cocok di database.");
+       setFavoriteStickers(favoriteStickers);
+    } else {
+       showToast(!isFavorited ? "Stiker berhasil ditambahkan ke Favorit! ⭐" : "Stiker dihapus dari Favorit.");
+    }
+  } catch (err) {
+    alert("Error Sistem React: " + err.message);
+  }
+}} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
+  {isFavorited ? 'Hapus dari Favorit' : 'Tambah ke Favorit'} 
+  {isFavorited ? <Icons.StarSolid className="text-yellow-400 drop-shadow-md w-5 h-5" /> : <Icons.Star className="w-5 h-5" />}
+</button>
                   )}
 
                   {activeChat.admin_id === myProfile.chat_id ? (
