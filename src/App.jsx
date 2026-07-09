@@ -1831,7 +1831,10 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false)
   
   const [replyingTo, setReplyingTo] = useState(null)
-  const [activeMsgId, setActiveMsgId] = useState(null)
+  const [isReplyExpanded, setIsReplyExpanded] = useState(false);
+  useEffect(() => {
+     setIsReplyExpanded(false);
+  }, [replyingTo]);  const [activeMsgId, setActiveMsgId] = useState(null)
   const [editingMsg, setEditingMsg] = useState(null)
 
   const [isStickerMakerOpen, setIsStickerMakerOpen] = useState(false);
@@ -1848,10 +1851,7 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
 
   const lastGroupMsgTimeRef = useRef(0);
 
-  const [favoriteStickers, setFavoriteStickers] = useState(() => {
-    const saved = localStorage.getItem('fav_stickers');
-    return saved ? JSON.parse(saved) : [];
-  });
+const [favoriteStickers, setFavoriteStickers] = useState(myProfile?.favorite_stickers || []);
   const [showFavStickers, setShowFavStickers] = useState(false);
 
   const scrollToMessage = (msgId) => {
@@ -2555,21 +2555,45 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
         {/* INPUT AREA MODERN SPATIAL */}
         <div className={`p-3 md:p-5 flex flex-col ${colors.panel} border-t ${colors.border} shrink-0 z-20 backdrop-blur-2xl`}>
           {editingMsg && (
-            <div className="flex justify-between items-center bg-black/10 dark:bg-white/5 rounded-2xl p-3 mx-2 mb-3 border-l-4 border-[#0C8F5B] dark:border-[#78C951]">
-              <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start bg-black/10 dark:bg-white/5 rounded-2xl p-3 mx-2 mb-3 border-l-4 border-[#0C8F5B] dark:border-[#78C951]">
+              <div className="flex-1 min-w-0 pr-2">
                 <p className={`text-[10px] font-black uppercase tracking-widest text-[#0C8F5B] dark:text-[#78C951] mb-1`}>{t.edit}</p>
-                <p className="text-sm font-medium opacity-80 truncate">{editingMsg.content}</p>
+                {/* Tambahkan break-all dan line-clamp-2 agar rapi */}
+                <p className="text-sm font-medium opacity-80 line-clamp-2 break-words">{editingMsg.content}</p>
               </div>
-              <button onClick={() => { setEditingMsg(null); setInputMessage(''); }} className="p-2 opacity-50 hover:opacity-100 transition-opacity"><Icons.Plus className="rotate-45" /></button>
+              <button onClick={() => { setEditingMsg(null); setInputMessage(''); }} className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0"><Icons.Plus className="rotate-45 w-5 h-5" /></button>
             </div>
           )}
+          
           {replyingTo && (
-            <div className="flex justify-between items-center bg-black/10 dark:bg-white/5 rounded-2xl p-3 mx-2 mb-3 border-l-4 border-[#0C8F5B] dark:border-[#78C951]">
-              <div className="flex-1 min-w-0">
-                <p className={`text-[10px] font-black uppercase tracking-widest text-[#0C8F5B] dark:text-[#78C951] mb-1`}>{t.reply} {getSenderName(replyingTo.sender_id)}</p>
-                <p className="text-sm font-medium opacity-80 truncate">{replyingTo.content || 'Media File'}</p>
+            <div className="flex justify-between items-start bg-black/10 dark:bg-white/5 rounded-2xl p-3 mx-2 mb-3 border-l-4 border-[#0C8F5B] dark:border-[#78C951]">
+              <div className="flex-1 min-w-0 pr-2">
+                <p className={`text-[10px] font-black uppercase tracking-widest text-[#0C8F5B] dark:text-[#78C951] mb-1`}>
+                  {t.reply} {getSenderName(replyingTo.sender_id)}
+                </p>
+                
+                <div className="text-sm font-medium opacity-80">
+                   {/* Logika line-clamp untuk memotong teks & break-words untuk kata panjang tanpa spasi */}
+                   <p className={`${!isReplyExpanded ? 'line-clamp-2' : ''} break-words whitespace-pre-wrap`}>
+                     {replyingTo.content || 'Media File'}
+                   </p>
+                   
+                   {/* Munculkan tombol jika panjang karakter lebih dari 80 */}
+                   {replyingTo.content && replyingTo.content.length > 80 && (
+                     <button 
+                       type="button"
+                       onClick={() => setIsReplyExpanded(!isReplyExpanded)}
+                       className="text-[10px] font-bold text-[#0C8F5B] dark:text-[#78C951] mt-1 hover:underline cursor-pointer"
+                     >
+                       {isReplyExpanded ? 'Sembunyikan' : 'Baca selengkapnya...'}
+                     </button>
+                   )}
+                </div>
               </div>
-              <button onClick={() => setReplyingTo(null)} className="p-2 opacity-50 hover:opacity-100 transition-opacity"><Icons.Plus className="rotate-45" /></button>
+              
+              <button onClick={() => setReplyingTo(null)} className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
+                <Icons.Plus className="rotate-45 w-5 h-5" />
+              </button>
             </div>
           )}
           {stagedFiles.length > 0 && (
@@ -2606,11 +2630,12 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
              className="w-16 h-16 object-contain cursor-pointer hover:scale-110 transition-transform drop-shadow-md" alt="Fav" 
            />
            {/* Tombol Hapus dari Favorit */}
-           <button onClick={(e) => {
+           <button onClick={async (e) => {
               e.stopPropagation();
               const newFavs = favoriteStickers.filter(u => u !== url);
               setFavoriteStickers(newFavs);
-              localStorage.setItem('fav_stickers', JSON.stringify(newFavs));
+              // Hapus dari Supabase
+              await supabase.from('profiles').update({ favorite_stickers: newFavs }).eq('id', session.user.id);
            }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
              <Icons.Plus className="w-3 h-3 rotate-45" />
            </button>
@@ -2620,40 +2645,60 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
   </div>
 )}
 
-          <form onSubmit={handleSendMessage} className="flex gap-3 items-end px-1">
+          <form onSubmit={handleSendMessage} className="flex gap-2 items-end px-1">
             <input type="file" multiple ref={mediaInputRef} onChange={handleSendMedia} className="hidden" />
             
-            <button 
-              type="button" 
-              onClick={() => setIsStickerMakerOpen(true)} 
-              className={`p-3.5 rounded-xl ${colors.hoverBg} border ${colors.border} ${colors.textMuted} hover:text-[#0C8F5B] dark:hover:text-[#78C951] transition-all shrink-0`}
-            >
-              <Icons.Sticker className="w-6 h-6" />
+            {/* KOTAK INPUT TERPADU (Semua Ikon di dalam satu gelembung) */}
+            <div className={`flex-1 ${colors.inputBg} rounded-[1.5rem] min-h-[50px] md:min-h-[56px] flex items-center shadow-inner border ${colors.border} transition-all py-1 px-1.5 md:px-2 focus-within:border-[#0C8F5B] dark:focus-within:border-[#78C951] focus-within:ring-1 focus-within:ring-[#0C8F5B] dark:focus-within:ring-[#78C951]`}>
               
-            </button>
-            <button 
-  type="button" 
-  onClick={() => setShowFavStickers(!showFavStickers)} 
-  className={`p-3.5 rounded-xl ${showFavStickers ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-500' : colors.hoverBg + ' ' + colors.textMuted} border ${colors.border} transition-all shrink-0`}
->
-  <Icons.Star className="w-6 h-6" />
-</button>
-            
-            <div className={`flex-1 ${colors.inputBg} rounded-[1.5rem] min-h-[56px] flex items-center shadow-inner border ${colors.border} transition-all py-1.5 px-3 focus-within:border-[#0C8F5B] dark:focus-within:border-[#78C951] focus-within:ring-1 focus-within:ring-[#0C8F5B] dark:focus-within:ring-[#78C951]`}>
+              {/* Tombol Pembuat Stiker (Kiri) */}
+              <button 
+                type="button" 
+                onClick={() => setIsStickerMakerOpen(true)} 
+                className={`p-2 rounded-full ${colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 hover:text-current transition-all shrink-0`}
+              >
+                <Icons.Sticker className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+
+              {/* Tombol Laci Favorit (Kiri) */}
+              <button 
+                type="button" 
+                onClick={() => setShowFavStickers(!showFavStickers)} 
+                className={`p-2 rounded-full ${showFavStickers ? 'text-yellow-500' : colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 transition-all shrink-0`}
+              >
+                <Icons.Star className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+
+              {/* Area Ketik Pesan */}
               <textarea 
                 rows={1} value={inputMessage} onChange={handleTyping} 
                 onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                 placeholder={isUploading ? 'Menyiapkan Transmisi...' : t.typeMsg} 
-                className={`w-full bg-transparent px-3 py-2.5 text-[15px] font-medium outline-none resize-none max-h-[120px] overflow-y-auto ${colors.text} placeholder-gray-400 dark:placeholder-[#3D5A4C]`} 
+                className={`w-full bg-transparent px-2 py-2.5 text-[14px] md:text-[15px] font-medium outline-none resize-none max-h-[120px] overflow-y-auto ${colors.text} placeholder-gray-400 dark:placeholder-[#3D5A4C]`} 
               />
-              <button type="button" disabled={isUploading} onClick={() => mediaInputRef.current.click()} className={`p-2.5 rounded-xl ${colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 hover:text-current transition-all ml-1`}>
-                <Icons.Attach className="w-5 h-5" />
+              
+              {/* Tombol Kirim Dokumen/File (Kanan Dalam) */}
+              <button 
+                type="button" 
+                disabled={isUploading} 
+                onClick={() => mediaInputRef.current.click()} 
+                className={`p-2 rounded-full ${colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 hover:text-current transition-all shrink-0`}
+              >
+                <Icons.Attach className="w-5 h-5 md:w-6 md:h-6 rotate-[-45deg]" />
               </button>
             </div>
             
-            <button type="submit" disabled={(!inputMessage.trim() && stagedFiles.length === 0) || isUploading} className={`w-[56px] h-[56px] flex items-center justify-center rounded-[1.5rem] ${colors.primary} shrink-0 shadow-lg transition-all ${((!inputMessage.trim() && stagedFiles.length === 0) || isUploading) ? 'opacity-50 grayscale scale-95' : 'hover:scale-105 active:scale-95'}`}>
-              {isUploading ? <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : <Icons.Send className="w-6 h-6" />}
+            {/* TOMBOL KIRIM PESAN (Bulat di luar) */}
+            <button 
+              type="submit" 
+              disabled={(!inputMessage.trim() && stagedFiles.length === 0) || isUploading} 
+              className={`w-[50px] h-[50px] md:w-[56px] md:h-[56px] flex items-center justify-center rounded-[1.5rem] ${colors.primary} shrink-0 shadow-lg transition-all ${((!inputMessage.trim() && stagedFiles.length === 0) || isUploading) ? 'opacity-50 grayscale scale-95' : 'hover:scale-105 active:scale-95'}`}
+            >
+              {isUploading 
+                 ? <div className="w-5 h-5 md:w-6 md:h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div> 
+                 : <Icons.Send className="w-5 h-5 md:w-6 md:h-6 ml-1" />
+              }
             </button>
           </form>
         </div>
@@ -2744,14 +2789,22 @@ function ChatRoom({ session, myProfile, colors, t, activeChat, setActiveChat, co
                   </button>
                   
                   {activeChat.admin_id === myProfile.chat_id && (
-                    <button onClick={async () => {
-                      const memberId = prompt(t.inputMemberId);
-                      if (memberId) {
-                         const { error } = await supabase.from('group_members').insert([{ group_id: activeChat.contact_id, user_id: memberId }]);
-                         if (error) alert(t.failedAddMember);
-                         else showToast(t.successAddMember);
-                      }
-                    }} className={`w-full p-5 rounded-[1.5rem] flex items-center justify-between font-bold text-[#0C8F5B] dark:text-[#78C951] bg-[#0C8F5B]/10 dark:bg-[#78C951]/10 border border-[#0C8F5B]/20 dark:border-[#78C951]/20 hover:bg-[#0C8F5B]/20 dark:hover:bg-[#78C951]/20 transition-all mb-4 shadow-sm`}>
+                    <button onClick={async () => { 
+           if (!isFavorited) {
+              const newFavs = [stickerUrl, ...favoriteStickers];
+              setFavoriteStickers(newFavs);
+              // Simpan ke Supabase
+              await supabase.from('profiles').update({ favorite_stickers: newFavs }).eq('id', session.user.id);
+              showToast("Stiker berhasil ditambahkan ke Favorit! ⭐");
+           } else {
+              const newFavs = favoriteStickers.filter(u => u !== stickerUrl);
+              setFavoriteStickers(newFavs);
+              // Simpan ke Supabase
+              await supabase.from('profiles').update({ favorite_stickers: newFavs }).eq('id', session.user.id);
+              showToast("Stiker dihapus dari Favorit.");
+           }
+           setContextMsg(null); 
+         }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
                       <span className="tracking-wide">{t.addMember}</span>
                       <Icons.Plus className="w-6 h-6" />
                     </button>
