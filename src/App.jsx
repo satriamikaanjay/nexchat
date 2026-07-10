@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect, useRef, Fragment, useMemo } from 'react'
 import { supabase } from './supabaseClient'
 import Auth from './Auth'
 import { Capacitor } from '@capacitor/core';
@@ -79,49 +79,7 @@ const Avatar = ({ url, name, size = 'w-10 h-10', className = '' }) => (
   )
 )
 
-const handleSendMedia = async (e) => {
-  const files = Array.from(e.target.files);
-  if (files.length === 0) return;
 
-  const processedFiles = [];
-
-  for (const file of files) {
-    let fileToProcess = file;
-    let fileName = file.name;
-
-    // Cek apakah file adalah HEIC
-    if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-      try {
-        // Konversi HEIC ke Blob JPEG
-        const blob = await heic2any({
-          blob: file,
-          toType: "image/jpeg",
-          quality: 0.8 // Kualitas 80%
-        });
-        
-        // Ubah blob menjadi file yang bisa diunggah
-        fileName = file.name.replace(/\.[^/.]+$/, ".jpg");
-        fileToProcess = new File([blob], fileName, { type: "image/jpeg" });
-      } catch (err) {
-        console.error("Gagal convert HEIC:", err);
-      }
-    }
-
-    let fileType = 'document';
-    if (fileToProcess.type.startsWith('image/')) fileType = 'image';
-    else if (fileToProcess.type.startsWith('video/')) fileType = 'video';
-
-    processedFiles.push({
-      file: fileToProcess,
-      type: fileType,
-      name: fileName,
-      previewUrl: URL.createObjectURL(fileToProcess)
-    });
-  }
-
-  setStagedFiles(prev => [...prev, ...processedFiles]);
-  e.target.value = '';
-};
 
 const Modal = ({ isOpen, onClose, title, children, colors }) => {
   if (!isOpen) return null;
@@ -884,13 +842,22 @@ function MainApp({ session, myProfile, setMyProfile }) {
     const initData = async () => {
       const { data: myContacts } = await supabase.from('contacts').select('id, user_id, contact_id, contact_username, created_at, cleared_at').eq('user_id', session.user.id).order('created_at', { ascending: false })
       if (myContacts && myContacts.length > 0) {
-        // TAMBAHKAN 'bio' PADA SELECT
-        const { data: profiles } = await supabase.from('profiles').select('chat_id, avatar_url, bio').in('chat_id', myContacts.map(c => c.contact_id))
-        setContacts(myContacts.map(contact => ({ 
-           ...contact, 
-           avatar_url: profiles?.find(p => p.chat_id === contact.contact_id)?.avatar_url,
-           bio: profiles?.find(p => p.chat_id === contact.contact_id)?.bio // Masukkan bio ke state
-        })))
+        
+        // 1. TAMBAHKAN 'username' PADA QUERY SELECT INI
+        const { data: profiles } = await supabase.from('profiles').select('chat_id, username, avatar_url, bio').in('chat_id', myContacts.map(c => c.contact_id))
+        
+        setContacts(myContacts.map(contact => {
+           // 2. Cari data profil teman yang paling fresh
+           const freshProfile = profiles?.find(p => p.chat_id === contact.contact_id);
+           
+           return { 
+             ...contact, 
+             // 3. Timpa nama lama (contact_username) dengan nama baru dari database (freshProfile.username)
+             contact_username: freshProfile?.username || contact.contact_username,
+             avatar_url: freshProfile?.avatar_url,
+             bio: freshProfile?.bio
+          }
+        }))
       }
     }
     initData()
@@ -1809,6 +1776,24 @@ function SettingsListItem({ icon, title, desc, onClick, colors, borderBottom = t
   )
 }
 
+const formatTextWithLinks = (text) => {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" 
+           className="text-blue-400 dark:text-[#78C951] hover:underline underline-offset-4 break-all cursor-pointer" 
+           onClick={(e) => e.stopPropagation()}>
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+};
+
 // ================= KOMPONEN RUANG OBROLAN MODERN =================
 function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, setActiveChat, contacts, setContacts, globalMessages, setGlobalMessages, onlineUsers, blockedIds, openConfirm, localDeletedMsgs, setLocalDeletedMsgs, taskData, setTaskData, groups, setGroups }) {
   const [inputMessage, setInputMessage] = useState('')
@@ -1816,8 +1801,11 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
   const [pendingMessages, setPendingMessages] = useState([])
   const [isProcessingQueue, setIsProcessingQueue] = useState(false)
   const [previewMedia, setPreviewMedia] = useState(null)
+  const [previewIndex, setPreviewIndex] = useState(0) // Untuk melacak foto ke-berapa yang dilihat
+  const previewTouchStartX = useRef(0) // Untuk mendeteksi arah gesekan (swipe) di layar HP
   const [isUploading, setIsUploading] = useState(false)
   const [showContactInfo, setShowContactInfo] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const [groupMembers, setGroupMembers] = useState([]);
 
@@ -1898,6 +1886,7 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
   const touchStartY = useRef(0)
   const pressTimer = useRef(null)
   const isSwipingRef = useRef(false)
+  
 
   const lastGroupMsgTimeRef = useRef(0);
 
@@ -1968,6 +1957,13 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
   };
 
   const forceDownload = async (url, filename) => {
+    // 1. Jika berjalan di HP (APK/iOS), serahkan download ke browser sistem bawaan
+    if (Capacitor.isNativePlatform()) {
+       window.open(url, '_system');
+       return;
+    }
+
+    // 2. Jika di Web, gunakan Blob agar langsung terunduh
     try {
       const response = await fetch(url);
       const blob = await response.blob();
@@ -1976,7 +1972,9 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
       a.href = blobUrl; a.download = filename || 'media';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
-    } catch (err) { window.open(url, '_blank'); }
+    } catch (err) { 
+      window.open(url, '_blank'); 
+    }
   }
 
   const handleDeleteForMe = (msgId) => { setLocalDeletedMsgs(prev => [...prev, msgId]); setContextMsg(null); }
@@ -2102,6 +2100,7 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
 
   useEffect(() => {
     setIsHeaderMenuOpen(false); setReplyingTo(null); setEditingMsg(null); setActiveMsgId(null); setTypingUserId(null); setShowContactInfo(false);
+    setVisibleCount(50);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 100);
   }, [activeChat]);
 
@@ -2165,6 +2164,7 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
   // Pastikan saat pindah chat, indikator typing di-reset
   useEffect(() => {
     setIsHeaderMenuOpen(false); setReplyingTo(null); setEditingMsg(null); setActiveMsgId(null); setTypingUserId(null); setShowContactInfo(false);
+    setVisibleCount(50);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 100);
   }, [activeChat]);
 
@@ -2203,15 +2203,22 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
     let uploadedFiles = [];
 
     if (stagedFiles.length > 0) {
-      for (const sf of stagedFiles) {
+      // Promise.all membuat semua foto di-upload serentak (10x lebih cepat)
+      const uploadPromises = stagedFiles.map(async (sf) => {
         const fileExt = sf.name.split('.').pop(); 
         const filePath = `${session.user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const { error } = await supabase.storage.from('chat_media').upload(filePath, sf.file);
+        
         if (!error) { 
           const { data } = supabase.storage.from('chat_media').getPublicUrl(filePath); 
-          uploadedFiles.push({ url: data.publicUrl, type: sf.type, name: sf.name });
+          return { url: data.publicUrl, type: sf.type, name: sf.name };
         }
-      }
+        return null;
+      });
+      
+      // Tunggu semua proses selesai
+      const results = await Promise.all(uploadPromises);
+      uploadedFiles = results.filter(res => res !== null);
     }
 
     // FIX 1: Generate Date secara manual
@@ -2256,15 +2263,82 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
     setInputMessage(''); setStagedFiles([]); setReplyingTo(null); setIsUploading(false);
 }
 
-  const handleSendMedia = (e) => {
-    const files = Array.from(e.target.files); 
-    if (files.length === 0) return; 
-    const newStaged = files.map(file => {
-      let fileType = 'document'; 
-      if (file.type.startsWith('image/')) fileType = 'image'; else if (file.type.startsWith('video/')) fileType = 'video';
-      return { file, type: fileType, name: file.name, previewUrl: URL.createObjectURL(file) }
-    });
-    setStagedFiles(prev => [...prev, ...newStaged]);
+  const handleSendMedia = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    // Tampilkan notif agar user tahu sedang diproses
+    showToast("Memproses media...");
+
+    const processedFiles = [];
+
+    for (const file of files) {
+      let fileToProcess = file;
+      let fileName = file.name;
+      let isImage = file.type.startsWith('image/');
+
+      // 1. Cek & Convert HEIC (Untuk iPhone)
+      if (fileName.toLowerCase().endsWith('.heic') || fileName.toLowerCase().endsWith('.heif')) {
+        try {
+          const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+          fileName = fileName.replace(/\.[^/.]+$/, ".jpg");
+          fileToProcess = new File([blob], fileName, { type: "image/jpeg" });
+          isImage = true;
+        } catch (err) {
+          console.error("Gagal convert HEIC:", err);
+        }
+      }
+
+      // 2. KOMPRESI GAMBAR (Penting agar UI tidak freeze)
+      if (isImage && !fileToProcess.type.includes('gif')) {
+         try {
+            fileToProcess = await new Promise((resolve) => {
+               const reader = new FileReader();
+               reader.readAsDataURL(fileToProcess);
+               reader.onload = (event) => {
+                 const img = new Image();
+                 img.src = event.target.result;
+                 img.onload = () => {
+                   const canvas = document.createElement('canvas');
+                   // Batasi ukuran piksel maksimal (Resolusi HD)
+                   const MAX_WIDTH = 1280; const MAX_HEIGHT = 1280;
+                   let width = img.width; let height = img.height;
+
+                   if (width > height) {
+                     if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                   } else {
+                     if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                   }
+
+                   canvas.width = width; canvas.height = height;
+                   const ctx = canvas.getContext('2d');
+                   ctx.drawImage(img, 0, 0, width, height);
+                   
+                   // Kompresi ukuran file hingga 60% kualitas
+                   canvas.toBlob((blob) => {
+                     resolve(new File([blob], fileName, { type: 'image/jpeg' }));
+                   }, 'image/jpeg', 0.6);
+                 };
+               };
+            });
+         } catch (err) {
+            console.error("Gagal kompresi:", err);
+         }
+      }
+
+      let fileType = 'document';
+      if (fileToProcess.type.startsWith('image/')) fileType = 'image';
+      else if (fileToProcess.type.startsWith('video/')) fileType = 'video';
+
+      processedFiles.push({
+        file: fileToProcess,
+        type: fileType,
+        name: fileName,
+        previewUrl: URL.createObjectURL(fileToProcess)
+      });
+    }
+
+    setStagedFiles(prev => [...prev, ...processedFiles]);
     e.target.value = '';
   }
 
@@ -2317,13 +2391,27 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                {contextMsg.media_files && contextMsg.media_files.length > 0 && (
                  <div className={`grid gap-2 ${contextMsg.media_files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} mb-3`}>
                    {contextMsg.media_files.map((file, idx) => (
-                     <div key={idx} className={`relative overflow-hidden rounded-xl h-32 flex items-center justify-center ${file.type === 'sticker' ? 'bg-transparent border-none' : 'border border-white/10 bg-black/20'}`}>
-                       {file.type === 'image' && <img src={file.url} className="object-cover w-full h-full" alt="Preview" />}
-                       {file.type === 'video' && <video src={file.url} className="object-cover w-full h-full" />}
+                     <div 
+                       key={idx} 
+                       onClick={(e) => {
+                          if (file.type === 'image' || file.type === 'video') {
+                             e.stopPropagation();
+                             const viewableMedia = contextMsg.media_files.filter(f => f.type === 'image' || f.type === 'video');
+                             const clickedIndex = viewableMedia.findIndex(f => f.url === file.url);
+                             
+                             setPreviewMedia(viewableMedia); 
+                             setPreviewIndex(clickedIndex !== -1 ? clickedIndex : 0);
+                             setContextMsg(null); 
+                          }
+                       }}
+                       className={`relative overflow-hidden rounded-xl h-32 flex items-center justify-center ${file.type === 'sticker' ? 'bg-transparent border-none' : 'border border-white/10 bg-black/20 cursor-pointer hover:opacity-80 transition-opacity'}`}
+                     >
+                       {file.type === 'image' && <img src={file.url} className="object-cover w-full h-full pointer-events-none" alt="Preview" />}
+                       {file.type === 'video' && <video src={file.url} className="object-cover w-full h-full pointer-events-none" />}
                        
                        {file.type === 'sticker' && <img src={file.url} className="object-contain w-28 h-28 drop-shadow-xl" alt="Sticker Preview" />}
                        
-                       {file.type === 'document' && <div className="flex flex-col items-center justify-center h-full text-[10px] opacity-70 p-2"><Icons.File className="w-8 h-8 mb-2" /> <span className="truncate w-full mt-1">{file.name}</span></div>}
+                       {file.type === 'document' && <div className="flex flex-col items-center justify-center h-full text-[10px] opacity-70 p-2"><Icons.File className="w-8 h-8 mb-2 pointer-events-none" /> <span className="truncate w-full mt-1 pointer-events-none">{file.name}</span></div>}
                      </div>
                    ))}
                  </div>
@@ -2381,8 +2469,18 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                    {contextMsg.media_files && contextMsg.media_files.length > 0 && (
                       <>
                         {contextMsg.media_files.some(f => f.type === 'image' || f.type === 'video') && (
-                          <button onClick={() => { setPreviewMedia(contextMsg.media_files.find(f => f.type === 'image' || f.type === 'video')); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>{t.viewMedia}</button>
-                        )}
+  <button onClick={() => { 
+     // 1. Ambil SEMUA file gambar dan video dalam pesan ini
+     const viewableMedia = contextMsg.media_files.filter(f => f.type === 'image' || f.type === 'video');
+     
+     // 2. Jadikan array tersebut sebagai preview dan mulai dari index 0 (gambar pertama)
+     setPreviewMedia(viewableMedia); 
+     setPreviewIndex(0);
+     setContextMsg(null); 
+  }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
+     {t.viewMedia}
+  </button>
+)}
                         <button onClick={() => { contextMsg.media_files.forEach(f => forceDownload(f.url, f.name)); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>{t.saveMedia}</button>
                       </>
                    )}
@@ -2441,16 +2539,28 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
           
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-3 px-4 md:px-8 pt-6 pb-6 z-10 relative scrollbar-hide" onClick={() => { setIsHeaderMenuOpen(false); setActiveMsgId(null); }}>
             
+            {/* --- LOGIKA LOAD MORE DIMULAI DI SINI --- */}
+            {filteredMessages.length > visibleCount && (
+               <div className="flex justify-center mb-6">
+                 <button 
+                   onClick={() => setVisibleCount(prev => prev + 50)} 
+                   className={`px-5 py-2 text-xs font-bold rounded-full ${colors.inputBg} border ${colors.border} ${colors.hoverBg} shadow-md transition-all active:scale-95`}
+                 >
+                   Lihat chat sebelumnya...
+                 </button>
+               </div>
+            )}
+            
             <div className="flex justify-center mb-8">
               <div className={`text-[10px] font-bold uppercase tracking-widest px-5 py-2 rounded-full ${colors.warningBg} ${colors.warningText} shadow-md flex items-center gap-2 max-w-[90%] text-center border border-current/20`}>
                 <Icons.Lock className="w-3.5 h-3.5" /> {t.encrypted}
               </div>
             </div>
 
-            {filteredMessages.map((msg, idx) => {
+            {filteredMessages.slice(-visibleCount).map((msg, idx, messagesToDisplay) => {
               const isMe = msg.sender_id === myProfile.chat_id;
               const dateLabel = formatDateBadge(msg.created_at)
-              const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null
+              const prevMsg = idx > 0 ? messagesToDisplay[idx - 1] : null
               const showDateBadge = !prevMsg || formatDateBadge(prevMsg.created_at) !== dateLabel
               const timeString = new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
               const repliedMsg = msg.reply_to_id ? globalMessages.find(m => m.id === msg.reply_to_id) : null
@@ -2786,13 +2896,54 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
           </form>
         </div>
 
-        {previewMedia && (
-          <div className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setPreviewMedia(null)}>
+        {previewMedia && previewMedia.length > 0 && (
+          <div 
+             className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-300" 
+             onClick={() => setPreviewMedia(null)}
+             // DETEKSI SWIPE LAYAR HP
+             onTouchStart={(e) => { previewTouchStartX.current = e.touches[0].clientX; }}
+             onTouchEnd={(e) => {
+                 const touchEndX = e.changedTouches[0].clientX;
+                 const diffX = previewTouchStartX.current - touchEndX;
+                 
+                 if (diffX > 50) { 
+                     e.stopPropagation();
+                     setPreviewIndex(prev => prev < previewMedia.length - 1 ? prev + 1 : 0);
+                 } else if (diffX < -50) { 
+                     e.stopPropagation();
+                     setPreviewIndex(prev => prev > 0 ? prev - 1 : previewMedia.length - 1);
+                 }
+             }}
+          >
+            {/* Tombol Tutup */}
             <button onClick={() => setPreviewMedia(null)} className="absolute top-6 right-6 p-3 text-white bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-md transition-all z-50 shadow-lg border border-white/20">
               <Icons.Plus className="rotate-45 w-6 h-6" />
             </button>
-            {previewMedia.type === 'image' && <img src={previewMedia.url} onClick={(e) => e.stopPropagation()} className="max-h-[85vh] max-w-[90vw] object-contain rounded-[2rem] shadow-2xl border border-white/10" alt="Preview" />}
-            {previewMedia.type === 'video' && <video src={previewMedia.url} controls autoPlay onClick={(e) => e.stopPropagation()} className="max-h-[85vh] max-w-[90vw] object-contain rounded-[2rem] shadow-2xl border border-white/10" />}
+
+            {/* Navigasi Tambahan (Jika media lebih dari 1) */}
+            {previewMedia.length > 1 && (
+               <>
+                 <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev > 0 ? prev - 1 : previewMedia.length - 1); }} className="hidden md:flex absolute left-8 p-4 text-white bg-white/10 hover:bg-white/20 rounded-full z-50 backdrop-blur-md transition-all">
+                    <Icons.ArrowLeft className="w-6 h-6" />
+                 </button>
+                 <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev < previewMedia.length - 1 ? prev + 1 : 0); }} className="hidden md:flex absolute right-8 p-4 text-white bg-white/10 hover:bg-white/20 rounded-full z-50 backdrop-blur-md transition-all">
+                    <Icons.ArrowLeft className="rotate-180 w-6 h-6" />
+                 </button>
+                 
+                 {/* Indikator Angka */}
+                 <div className="absolute bottom-10 px-5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-sm tracking-widest z-50">
+                    {previewIndex + 1} / {previewMedia.length}
+                 </div>
+               </>
+            )}
+
+            {/* Render Gambar / Video */}
+            {previewMedia[previewIndex] && previewMedia[previewIndex].type === 'image' && (
+               <img key={previewMedia[previewIndex].url} src={previewMedia[previewIndex].url} onClick={(e) => e.stopPropagation()} className="max-h-[85vh] max-w-[90vw] object-contain rounded-[2rem] shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200" alt="Preview" />
+            )}
+            {previewMedia[previewIndex] && previewMedia[previewIndex].type === 'video' && (
+               <video key={previewMedia[previewIndex].url} src={previewMedia[previewIndex].url} controls autoPlay onClick={(e) => e.stopPropagation()} className="max-h-[85vh] max-w-[90vw] object-contain rounded-[2rem] shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200" />
+            )}
           </div>
         )}
 
@@ -2871,46 +3022,7 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                     <Icons.Copy className="w-4 h-4" /> {t.copyGroupId}
                   </button>
                   
-                  {activeChat.admin_id === myProfile.chat_id && (
-                    <button onClick={async () => { 
-  try {
-    const newFavs = !isFavorited 
-       ? [stickerUrl, ...favoriteStickers] 
-       : favoriteStickers.filter(u => u !== stickerUrl);
-    
-    // 1. Update UI secara Instan
-    setFavoriteStickers(newFavs);
-    if (setMyProfile) {
-       setMyProfile(prev => ({ ...prev, favorite_stickers: newFavs }));
-    }
-    setContextMsg(null); 
-    
-    // 2. Simpan ke DB (Gunakan myProfile.id dan .select() untuk memaksa balasan dari server)
-    const { data, error } = await supabase
-       .from('profiles')
-       .update({ favorite_stickers: newFavs })
-       .eq('id', myProfile.id)
-       .select();
-       
-    // 3. Sistem Deteksi Error Akurat
-    if (error) {
-       alert("Error Database: " + error.message);
-       // Kembalikan UI jika gagal
-       setFavoriteStickers(favoriteStickers); 
-    } else if (!data || data.length === 0) {
-       alert("Gagal Menyimpan! ID Profil tidak cocok di database.");
-       setFavoriteStickers(favoriteStickers);
-    } else {
-       showToast(!isFavorited ? "Stiker berhasil ditambahkan ke Favorit! ⭐" : "Stiker dihapus dari Favorit.");
-    }
-  } catch (err) {
-    alert("Error Sistem React: " + err.message);
-  }
-}} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>
-  {isFavorited ? 'Hapus dari Favorit' : 'Tambah ke Favorit'} 
-  {isFavorited ? <Icons.StarSolid className="text-yellow-400 drop-shadow-md w-5 h-5" /> : <Icons.Star className="w-5 h-5" />}
-</button>
-                  )}
+                  
 
                   {activeChat.admin_id === myProfile.chat_id ? (
                     <button onClick={handleDisbandGroup} className={`w-full p-5 rounded-[1.5rem] flex items-center justify-between font-bold text-red-500 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all shadow-sm`}>
