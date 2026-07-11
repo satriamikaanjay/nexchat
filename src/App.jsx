@@ -1784,14 +1784,23 @@ const formatTextWithLinks = (text) => {
     if (part.match(urlRegex)) {
       return (
         <a key={i} href={part} target="_blank" rel="noopener noreferrer" 
-           className="text-blue-400 dark:text-[#78C951] hover:underline underline-offset-4 break-all cursor-pointer" 
+           // break-all akan memaksa teks panjang turun ke bawah agar tidak merusak layar
+           className="text-blue-500 dark:text-[#78C951] hover:underline underline-offset-4 break-all cursor-pointer font-bold" 
            onClick={(e) => e.stopPropagation()}>
           {part}
         </a>
       );
     }
-    return part;
+    return <span key={i} className="break-words">{part}</span>;
   });
+};
+
+// 2. Fungsi baru untuk mengambil URL pertama dari teks (untuk tombol Buka Link)
+const getFirstUrl = (text) => {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const match = text.match(urlRegex);
+  return match ? match[0] : null;
 };
 
 // ================= KOMPONEN RUANG OBROLAN MODERN =================
@@ -2416,7 +2425,9 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                    ))}
                  </div>
                )}
-               <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap px-2 font-medium">{contextMsg.content}</p>
+               <div className="text-sm md:text-base leading-relaxed whitespace-pre-wrap px-2 font-medium">
+  {formatTextWithLinks(contextMsg.content)}
+</div>
             </div>
 
             <div className={`rounded-[1.5rem] shadow-2xl w-[280px] flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 zoom-in-95 border ${colors.border} ${colors.panel}`} onClick={e => e.stopPropagation()}>
@@ -2677,7 +2688,35 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                             )}
 
                             {!isSticker && msg.content && (
-                               <p className="break-words whitespace-pre-wrap leading-relaxed tracking-wide">{msg.content}</p>
+                               <div className="flex flex-col">
+                                 {/* 1. Teks utama dengan Link berwarna biru */}
+                                 <div className="whitespace-pre-wrap leading-relaxed tracking-wide text-[14px] md:text-[15px]">
+                                   {formatTextWithLinks(msg.content)}
+                                 </div>
+                                 
+                                 {/* 2. Logika memunculkan tombol "Buka Link" jika terdeteksi URL */}
+                                 {(() => {
+                                   const firstUrl = getFirstUrl(msg.content);
+                                   if (firstUrl) {
+                                     return (
+                                       <a
+                                         href={firstUrl}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         onClick={(e) => e.stopPropagation()}
+                                         className={`mt-3 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-sm border hover:scale-[1.02] active:scale-95
+                                           ${isMe 
+                                              ? 'bg-white/20 text-white border-white/30 hover:bg-white/30' 
+                                              : 'bg-[#0C8F5B]/10 dark:bg-[#78C951]/10 text-[#0C8F5B] dark:text-[#78C951] border-[#0C8F5B]/20 dark:border-[#78C951]/20 hover:bg-[#0C8F5B]/20 dark:hover:bg-[#78C951]/20'
+                                           }`}
+                                       >
+                                         <Icons.Globe className="w-4 h-4" /> Buka Link
+                                       </a>
+                                     );
+                                   }
+                                   return null;
+                                 })()}
+                               </div>
                             )}
 
                             <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest self-end shrink-0 pt-2 ml-4 
