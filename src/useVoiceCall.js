@@ -14,7 +14,29 @@ export const useVoiceCall = ({ supabase, session, myProfile, callState, setCallS
   const [networkStatus, setNetworkStatus] = useState('good');
   const [cameraFacingMode, setCameraFacingMode] = useState('user');
 
-  const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const rtcConfig = { 
+    iceServers: [
+      // 1. STUN Server dari Google (Jalur utama)
+      { urls: 'stun:stun.l.google.com:19302' },
+      
+      // 2. TURN Server Publik dari OpenRelay (Jembatan darurat penembus jaringan)
+      { 
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      { 
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      { 
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
+    ] 
+  };
 
   // ================= MESIN SUARA (AUDIO) =================
   const callingSoundRef = useRef(new Audio('/calling.mp3'));
