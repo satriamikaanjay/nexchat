@@ -77,20 +77,30 @@ export const useVoiceCall = ({ supabase, session, myProfile, callState, setCallS
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           
           // ---> JALANKAN ANTREAN SINYAL SAAT PINTU SUDAH SIAP <---
-          pendingCandidates.current.forEach(c => peerConnectionRef.current.addIceCandidate(c).catch(e => console.error(e)));
-          pendingCandidates.current = []; 
-
+          pendingCandidates.current.forEach(c => {
+             if (c) peerConnectionRef.current.addIceCandidate(c).catch(e => console.warn("ICE Antrean tertolak:", e));
+          });
+          pendingCandidates.current = [];
           setCallState(prev => ({ ...prev, status: 'connecting' }));
           setTimeout(() => setCallState(prev => ({ ...prev, status: 'connected' })), 1200);
         }
 
         // ---> LOGIKA ANTREAN ICE CANDIDATE BARU <---
         if (payload.type === 'candidate' && peerConnectionRef.current) {
-          const rtcCandidate = new RTCIceCandidate(payload.candidate);
-          if (peerConnectionRef.current.remoteDescription) {
-            peerConnectionRef.current.addIceCandidate(rtcCandidate).catch(e => console.error(e));
-          } else {
-            pendingCandidates.current.push(rtcCandidate); // Masukkan ke antrean jika pintu belum siap
+          // 1. Cek apakah sinyal candidate-nya benar-benar ada (tidak null/kosong)
+          if (payload.candidate) {
+            try {
+              const rtcCandidate = new RTCIceCandidate(payload.candidate);
+              
+              // 2. Cek secara ketat apakah Pintu (RemoteDescription) sudah benar-benar jadi
+              if (peerConnectionRef.current.remoteDescription && peerConnectionRef.current.remoteDescription.type) {
+                peerConnectionRef.current.addIceCandidate(rtcCandidate).catch(e => console.warn("ICE tertolak (Aman):", e));
+              } else {
+                pendingCandidates.current.push(rtcCandidate);
+              }
+            } catch (err) {
+              console.warn("Sinyal ICE rusak/kosong dari jaringan lambat. Diabaikan.");
+            }
           }
         }
 
@@ -135,8 +145,9 @@ export const useVoiceCall = ({ supabase, session, myProfile, callState, setCallS
         if (!callState.isCaller && (callState.status === 'connecting' || callState.status === 'connected') && callState.offerData) {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(callState.offerData));
           
-          // ---> JALANKAN ANTREAN DI SINI JUGA <---
-          pendingCandidates.current.forEach(c => peerConnectionRef.current.addIceCandidate(c).catch(e => console.error(e)));
+          pendingCandidates.current.forEach(c => {
+             if (c) peerConnectionRef.current.addIceCandidate(c).catch(e => console.warn("ICE Antrean tertolak:", e));
+          });
           pendingCandidates.current = [];
 
           const answer = await peerConnectionRef.current.createAnswer();
