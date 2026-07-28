@@ -1259,11 +1259,11 @@ function MainApp({ session, myProfile, setMyProfile }) {
           ref={remoteAudioRef}
           autoPlay
           playsInline
+          muted={false} /* <--- WAJIB DITAMBAHKAN */
           className={callState.isVideo && !callState.minimized && callState.status === 'connected' 
             ? "fixed inset-0 w-full h-full object-cover z-[9989] bg-[#050C09]" 
             : "absolute opacity-0 w-0 h-0 pointer-events-none z-[-1]"}
         />
-
         {/* ================= KONTROL MELAYANG KHUSUS VIDEO CALL (SAAT TERHUBUNG) ================= */}
         {callState.isVideo && callState.status === 'connected' && !callState.minimized && (
           <div className="fixed bottom-8 left-0 right-0 flex justify-center items-center gap-2 md:gap-5 z-[9999] px-2">

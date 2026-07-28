@@ -157,7 +157,16 @@ const rtcConfig = {
 
         if (callState.isVideo && localVideoRef?.current) localVideoRef.current.srcObject = localStreamRef.current;
         localStreamRef.current.getTracks().forEach(track => peerConnectionRef.current.addTrack(track, localStreamRef.current));
-        peerConnectionRef.current.ontrack = (event) => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0]; };
+        peerConnectionRef.current.ontrack = (event) => {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = event.streams[0];
+        
+        // --- TAMBAHKAN BARIS INI: Paksa browser memutar suaranya ---
+        remoteAudioRef.current.play().catch(err => {
+            console.warn("Browser mencegah autoplay suara:", err);
+        });
+      }
+    };
         peerConnectionRef.current.onicecandidate = (event) => { if (event.candidate && callState.contact) sendSignal({ type: 'candidate', candidate: event.candidate }, callState.contact.contact_id); };
         
         peerConnectionRef.current.oniceconnectionstatechange = () => {
