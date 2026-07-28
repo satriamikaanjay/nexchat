@@ -74,17 +74,26 @@ export const useVoiceCall = ({ supabase, session, myProfile, callState, setCallS
         }
 
         if (payload.type === 'answer' && peerConnectionRef.current) {
-          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-          
-          // ---> JALANKAN ANTREAN SINYAL SAAT PINTU SUDAH SIAP <---
-          pendingCandidates.current.forEach(c => {
-             if (c) peerConnectionRef.current.addIceCandidate(c).catch(e => console.warn("ICE Antrean tertolak:", e));
-          });
-          pendingCandidates.current = [];
-          setCallState(prev => ({ ...prev, status: 'connecting' }));
-          setTimeout(() => setCallState(prev => ({ ...prev, status: 'connected' })), 1200);
-        }
+          // CEK: Jangan proses jika state sudah 'stable' (berarti ini sinyal duplikat jaringan ngelag)
+          if (peerConnectionRef.current.signalingState !== 'stable') {
+            try {
+              await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+              
+              // ---> JALANKAN ANTREAN DENGAN AMAN <---
+              pendingCandidates.current.forEach(c => {
+                 if (c) peerConnectionRef.current.addIceCandidate(c).catch(e => console.warn("ICE Antrean tertolak:", e));
+              });
+              pendingCandidates.current = []; 
 
+              setCallState(prev => ({ ...prev, status: 'connecting' }));
+              setTimeout(() => setCallState(prev => ({ ...prev, status: 'connected' })), 1200);
+            } catch (err) {
+              console.warn("Gagal memproses Answer dari jaringan lambat:", err);
+            }
+          } else {
+             console.warn("Mengabaikan sinyal Answer duplikat. Koneksi sudah aman.");
+          }
+        }
         // ---> LOGIKA ANTREAN ICE CANDIDATE BARU <---
         if (payload.type === 'candidate' && peerConnectionRef.current) {
           // 1. Cek apakah sinyal candidate-nya benar-benar ada (tidak null/kosong)
