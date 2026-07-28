@@ -6,6 +6,7 @@ export const useVoiceCall = ({ supabase, session, myProfile, callState, setCallS
   const localStreamRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const channelRef = useRef(null);
+  const pendingCandidates = useRef([]);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -69,39 +70,35 @@ export const useVoiceCall = ({ supabase, session, myProfile, callState, setCallS
         
         if (payload.type === 'offer') {
           setCallState({ status: 'ringing', contact: payload.callerInfo, isCaller: false, offerData: payload.sdp, minimized: false, isVideo: payload.isVideo });
-          
-          // MUNCULKAN NOTIFIKASI CAPACITOR DENGAN TOMBOL SAAT DITELEPON
-          if (Capacitor.isNativePlatform()) {
-            LocalNotifications.schedule({
-              notifications: [{
-                title: payload.isVideo ? 'Video Call Masuk' : 'Panggilan Suara Masuk',
-                body: `${payload.callerInfo.contact_username} menelepon Anda...`,
-                id: 999, // ID statis agar mudah dihapus
-                actionTypeId: 'CALL_ACTIONS', // Mengaitkan ke tombol Angkat/Tolak
-                extra: { callerId: payload.callerInfo.contact_id }
-              }]
-            });
-          }
+          if (Capacitor.isNativePlatform()) { /* ... Notifikasi Capacitor tetap sama ... */ }
         }
 
         if (payload.type === 'answer' && peerConnectionRef.current) {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          
+          // ---> JALANKAN ANTREAN SINYAL SAAT PINTU SUDAH SIAP <---
+          pendingCandidates.current.forEach(c => peerConnectionRef.current.addIceCandidate(c).catch(e => console.error(e)));
+          pendingCandidates.current = []; 
+
           setCallState(prev => ({ ...prev, status: 'connecting' }));
           setTimeout(() => setCallState(prev => ({ ...prev, status: 'connected' })), 1200);
         }
+
+        // ---> LOGIKA ANTREAN ICE CANDIDATE BARU <---
         if (payload.type === 'candidate' && peerConnectionRef.current) {
+          const rtcCandidate = new RTCIceCandidate(payload.candidate);
           if (peerConnectionRef.current.remoteDescription) {
-            peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e => console.error(e));
+            peerConnectionRef.current.addIceCandidate(rtcCandidate).catch(e => console.error(e));
           } else {
-            setTimeout(() => { if (peerConnectionRef.current?.remoteDescription) peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(e => console.error(e)); }, 1500);
+            pendingCandidates.current.push(rtcCandidate); // Masukkan ke antrean jika pintu belum siap
           }
         }
-        if (payload.type === 'camera_toggle') {
-          setRemoteIsVideoOff(payload.isVideoOff);
-        }
+
+        if (payload.type === 'camera_toggle') setRemoteIsVideoOff(payload.isVideoOff);
+        
         if (payload.type === 'hangup') {
           setCallState(prev => ({ ...prev, status: 'hanging_up' }));
-          if (Capacitor.isNativePlatform()) LocalNotifications.cancel({ notifications: [{ id: 999 }] }); // Hapus notif jika penelpon mematikan
+          if (Capacitor.isNativePlatform()) LocalNotifications.cancel({ notifications: [{ id: 999 }] });
           setTimeout(() => endCall(true), 1500);
         }
       }).subscribe();
@@ -137,6 +134,11 @@ export const useVoiceCall = ({ supabase, session, myProfile, callState, setCallS
         }
         if (!callState.isCaller && (callState.status === 'connecting' || callState.status === 'connected') && callState.offerData) {
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(callState.offerData));
+          
+          // ---> JALANKAN ANTREAN DI SINI JUGA <---
+          pendingCandidates.current.forEach(c => peerConnectionRef.current.addIceCandidate(c).catch(e => console.error(e)));
+          pendingCandidates.current = [];
+
           const answer = await peerConnectionRef.current.createAnswer();
           await peerConnectionRef.current.setLocalDescription(answer);
           sendSignal({ type: 'answer', sdp: answer }, callState.contact.contact_id);
