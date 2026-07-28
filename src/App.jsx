@@ -10,6 +10,9 @@ import logoImg from './assets/logo.png';
 import { FCM } from "@capacitor-community/fcm";
 import { PushNotifications } from '@capacitor/push-notifications';
 import heic2any from 'heic2any';
+import { useVoiceCall } from './useVoiceCall';
+import { useDraggable } from './useDraggable';
+import { LocalNotifications } from '@capacitor/local-notifications';
   
 
 
@@ -55,6 +58,9 @@ const Icons = {
   TikTok: (props) => <svg {...props} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>,
   // ICON TAMBAHAN UNTUK PORTOFOLIO
   Briefcase: (props) => <svg {...props} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>,
+  Phone: (props) => <svg {...props} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
+  RefreshCw: (props) => <svg {...props} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>,
+  Mic: (props) => <svg {...props} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>,
 }
 
 // Komponen Background Spatial untuk Vibes Aplikasi Native
@@ -449,6 +455,154 @@ function MainApp({ session, myProfile, setMyProfile }) {
   const [contacts, setContacts] = useState([])
   const [groups, setGroups] = useState([])
 
+  const { position, handleTouchMove, onMouseDown, onMouseUp } = useDraggable();
+
+  const [callState, setCallState] = useState({
+    status: 'idle', // 'idle' | 'calling' (kamu nelpon) | 'ringing' (ditelpon) | 'connected'
+    contact: null,  // Data teman yang ditelpon/menelpon
+    isCaller: false 
+  });
+
+  const localVideoRef = useRef(null);
+
+  const remoteAudioRef = useRef(null);
+
+  // Ekstrak fungsi acceptCall dan rejectCall
+  const { acceptCall, rejectCall, endCall, toggleMute, isMuted, toggleVideo, isVideoOff, remoteIsVideoOff, networkStatus, flipCamera } = useVoiceCall({
+    supabase, session, myProfile, callState, setCallState, remoteAudioRef, localVideoRef
+  });
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      // 1. Daftarkan Tipe Tombol Notifikasi
+      LocalNotifications.registerActionTypes({
+        types: [
+          {
+            id: 'CALL_ACTIONS',
+            actions: [
+              { id: 'accept', title: 'Angkat', foreground: true }, // foreground: true akan membuka aplikasi
+              { id: 'reject', title: 'Tolak', foreground: false, destructive: true }
+            ]
+          }
+        ]
+      });
+
+      // 2. Tangkap Aksi Tombol
+      const listener = LocalNotifications.addListener('localNotificationActionPerformed', (notificationAction) => {
+        if (notificationAction.notification.actionTypeId === 'CALL_ACTIONS') {
+          if (notificationAction.actionId === 'accept') {
+             acceptCall(); // Panggil fungsi angkat
+          } else if (notificationAction.actionId === 'reject') {
+             rejectCall(); // Panggil fungsi tolak
+          }
+        }
+      });
+
+      return () => { listener.remove(); };
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // Jika user menekan Home / Keluar dari App saat telpon tersambung
+      if (document.hidden && callState.status === 'connected') {
+        // 1. Minimize UI di dalam aplikasi
+        setCallState(prev => ({ ...prev, minimized: true }));
+        
+        // 2. Memicu Picture-in-Picture milik OS HP (Khusus Video Call)
+        if (callState.isVideo && remoteAudioRef.current && remoteAudioRef.current.readyState >= 2) {
+          remoteAudioRef.current.requestPictureInPicture().catch(err => console.log("PiP Error:", err));
+        }
+      } 
+      // Jika user masuk kembali ke aplikasi
+      else if (!document.hidden) {
+        if (document.pictureInPictureElement) {
+          document.exitPictureInPicture().catch(err => console.log("Exit PiP Error:", err));
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [callState.status, callState.isVideo]);
+  const [callDuration, setCallDuration] = useState(0);
+
+  const [callLogs, setCallLogs] = useState(() => JSON.parse(localStorage.getItem('db_call_logs')) || []);
+  const [hiddenCallLogs, setHiddenCallLogs] = useState(() => JSON.parse(localStorage.getItem('hidden_call_logs')) || []);
+
+  const callDurationRef = useRef(0);
+  useEffect(() => { callDurationRef.current = callDuration; }, [callDuration]);
+
+  const prevCallState = useRef(callState);
+  useEffect(() => {
+    if (prevCallState.current.status === 'connected' && (callState.status === 'hanging_up' || callState.status === 'idle')) {
+      const newLog = {
+        id: Date.now(),
+        contact_username: prevCallState.current.contact?.contact_username || prevCallState.current.contact?.username,
+        avatar_url: prevCallState.current.contact?.avatar_url,
+        duration: callDurationRef.current,
+        date: new Date().toISOString(),
+        isVideo: prevCallState.current.isVideo,
+        isCaller: prevCallState.current.isCaller
+      };
+      
+      // Simpan ke "Database" (Disini kita simulasikan dengan db_call_logs)
+      const currentLogs = JSON.parse(localStorage.getItem('db_call_logs')) || [];
+      const updatedLogs = [newLog, ...currentLogs];
+      setCallLogs(updatedLogs);
+      localStorage.setItem('db_call_logs', JSON.stringify(updatedLogs));
+    }
+    prevCallState.current = callState;
+  }, [callState.status]);
+
+  // Fungsi untuk sembunyikan riwayat (Hapus di UI saja)
+  const hideCallLog = (logId) => {
+    const updatedHidden = [...hiddenCallLogs, logId];
+    setHiddenCallLogs(updatedHidden);
+    localStorage.setItem('hidden_call_logs', JSON.stringify(updatedHidden));
+  };
+
+  useEffect(() => {
+    let interval = null;
+    if (callState.status === 'connected') {
+      // Jalankan hitungan setiap 1 detik
+      interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      // Reset waktu jika telepon mati
+      setCallDuration(0);
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [callState.status]);
+
+  // Fungsi untuk mengubah angka detik menjadi format MM:SS
+  const formatDuration = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const handleRejectCall = () => {
+     setCallState(prev => ({...prev, status: 'rejecting'}));
+     setTimeout(() => endCall(false), 1200);
+  };
+  
+  const handleHangupCall = () => {
+     setCallState(prev => ({...prev, status: 'hanging_up'}));
+     setTimeout(() => endCall(false), 1200);
+  };
+  
+  const handleAcceptCall = () => {
+     setCallState(prev => ({...prev, status: 'connecting'}));
+     // Note: Pastikan di baris bawah ini tidak memanggil fungsi luar yang belum di-import, 
+     // cukup setCallState saja karena sinyal 'answer' dikirim dari useVoiceCall
+     setTimeout(() => setCallState(prev => ({...prev, status: 'connected'})), 1200);
+  };
+
   useEffect(() => {
   const initFCM = async () => {
   // 1. Minta izin push notification secara eksplisit
@@ -512,6 +666,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
   
   const [onlineUsers, setOnlineUsers] = useState([])
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false)
+  
   
   const [isAddContactOpen, setIsAddContactOpen] = useState(false)
   const [searchInput, setSearchInput] = useState('')
@@ -665,7 +820,7 @@ function MainApp({ session, myProfile, setMyProfile }) {
     PushNotifications.removeAllDeliveredNotifications();
   }
 
-  const isMainPage = ['chat', 'groups', 'tasks'].includes(activeMenu);
+  const isMainPage = ['chat', 'groups', 'calls'].includes(activeMenu);
 
   useEffect(() => { localStorage.setItem('app_theme', themeName) }, [themeName])
   useEffect(() => { localStorage.setItem('app_lang', language) }, [language])
@@ -991,7 +1146,218 @@ function MainApp({ session, myProfile, setMyProfile }) {
 
   return (
     <>
-      <div translate="no" className={`flex fixed inset-0 w-full font-sans overflow-hidden bg-transparent ${colors.text} transition-colors duration-500 selection:bg-[#78C951] selection:text-white`}>
+   {callState.status !== 'idle' && (
+      <>
+        {/* ================= LAYAR TELEPON TERPADU (MEMANGGIL, RINGING, JEDA MATI) ================= */}
+        {/* Tampil saat belum connected, ATAU saat connected tapi HANYA Voice Call (!isVideo) */}
+        {!callState.minimized && (callState.status !== 'connected' || !callState.isVideo) && (
+          <div className="fixed inset-0 z-[9995] bg-[#050C09] flex flex-col items-center justify-center transition-opacity duration-300">
+            {/* Animasi Background Blur */}
+            <div className="absolute w-72 h-72 bg-[#0C8F5B] opacity-20 rounded-full blur-[100px] animate-pulse"></div>
+
+            {/* Tombol Minimize (HANYA MUNCUL JIKA SUDAH CONNECTED VOICE CALL) */}
+            {callState.status === 'connected' && (
+              <button 
+                onClick={() => setCallState(prev => ({...prev, minimized: true}))}
+                className="absolute top-6 left-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white z-50 transition-all"
+                title="Minimize Panggilan"
+              >
+                <Icons.Chat className="w-6 h-6" />
+              </button>
+            )}
+
+            {/* Foto Profil Lawan Bicara */}
+            <Avatar
+              url={callState.contact?.avatar_url}
+              name={callState.contact?.contact_username || callState.contact?.username || '?'}
+              size="w-32 h-32"
+              className="mb-6 shadow-2xl border-4 border-white/10 z-20"
+            />
+
+            <h2 className="text-3xl font-black text-white tracking-wide mb-2 z-20">
+              {callState.contact?.contact_username || callState.contact?.username || 'Tidak Diketahui'}
+            </h2>
+
+            <p className="text-[#8AB5A0] text-lg font-medium animate-pulse z-20">
+              {callState.status === 'calling' ? 'Memanggil...' :
+               callState.status === 'ringing' ? 'Panggilan Masuk...' :
+               callState.status === 'connecting' ? 'Menghubungkan...' :
+               callState.status === 'connected' ? formatDuration(callDuration) :
+               callState.status === 'rejecting' ? 'Panggilan Ditolak' :
+               callState.status === 'hanging_up' ? 'Memutuskan...' : 'Memproses...'}
+            </p>
+
+            <div className="absolute bottom-16 left-0 right-0 flex flex-col items-center gap-6 z-30">
+              
+              {/* TOMBOL MUTE & KAMERA (HANYA MUNCUL BAGI PENELPON ATAU SAAT SUDAH DIANGKAT) */}
+              {(callState.status === 'calling' || callState.status === 'connected') && (
+                <div className="flex gap-4 mb-2">
+                  <button onClick={toggleMute} className={`p-4 rounded-full transition-all shadow-lg ${isMuted ? 'bg-white/10 text-red-500' : 'bg-[#1C3526]/80 border border-white/10 text-white hover:bg-[#2a4d38]'}`}>
+                    {isMuted ? (
+                      <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    ) : (
+                      <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    )}
+                  </button>
+
+                  {/* HANYA MUNCUL JIKA VIDEO CALL */}
+                  {callState.isVideo && (
+                    <>
+                      <button onClick={toggleVideo} className={`p-4 rounded-full transition-all shadow-lg ${isVideoOff ? 'bg-white/10 text-red-500' : 'bg-[#1C3526]/80 border border-white/10 text-white hover:bg-[#2a4d38]'}`}>
+                        {isVideoOff ? <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> : <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>}
+                      </button>
+                      <button onClick={flipCamera} className="p-4 rounded-full transition-all shadow-lg bg-[#1C3526]/80 border border-white/10 text-white hover:bg-[#2a4d38]">
+                        <Icons.RefreshCw className="w-6 h-6" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-10">
+                {/* User A (Memanggil) ATAU sedang Terhubung -> Tombol Tutup Saja (Merah) */}
+                {(callState.status === 'calling' || callState.status === 'connected' || callState.status === 'connecting') && (
+                  <button onClick={handleHangupCall} className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] transition-transform hover:scale-105">
+                    <Icons.Plus className="w-8 h-8 rotate-45" />
+                  </button>
+                )}
+
+                {/* User B (Ditelpon/Ringing) -> HANYA Tombol Tolak & Angkat */}
+                {callState.status === 'ringing' && (
+                  <>
+                    <button onClick={handleRejectCall} className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] transition-transform hover:scale-105">
+                      <Icons.Plus className="w-8 h-8 rotate-45" />
+                    </button>
+                    <button onClick={handleAcceptCall} className="w-16 h-16 bg-[#78C951] hover:bg-[#68b345] rounded-full flex items-center justify-center text-[#0A140F] shadow-[0_0_30px_rgba(120,201,81,0.4)] transition-transform hover:scale-105 animate-bounce">
+                      <Icons.Smartphone className="w-8 h-8" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= LAYAR VIDEO LAWAN BICARA (FULL SCREEN) ================= */}
+        <div className={callState.isVideo && !callState.minimized && callState.status === 'connected' ? "fixed inset-0 z-[9990] pointer-events-none flex flex-col items-center justify-center" : "hidden"}>
+            
+            {/* ⏱️ Timer Durasi Video Call (Melayang di atas tengah) */}
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full text-white text-sm font-bold tracking-widest border border-white/10 shadow-lg z-[9995]">
+              {formatDuration(callDuration)}
+            </div>
+
+            {/* Foto profil muncul HANYA jika TEMAN mematikan kamera */}
+            <div className={`absolute inset-0 flex flex-col items-center justify-center bg-[#050C09] transition-opacity duration-300 pointer-events-auto ${remoteIsVideoOff ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'}`}>
+                <Avatar url={callState.contact?.avatar_url} name={callState.contact?.contact_username} size="w-32 h-32" className="shadow-2xl border-4 border-white/10" />
+                <p className="mt-6 text-white/70 font-medium text-sm tracking-wide">Kamera dimatikan</p>
+            </div>
+            
+        </div>
+        
+        {/* Tag video asli (Sekarang tidak akan tertutup layar hitam lagi) */}
+        <video
+          ref={remoteAudioRef}
+          autoPlay
+          playsInline
+          className={callState.isVideo && !callState.minimized && callState.status === 'connected' ? "fixed inset-0 w-full h-full object-cover z-[9989] bg-[#050C09]" : "hidden"}
+        />
+
+        {/* ================= KONTROL MELAYANG KHUSUS VIDEO CALL (SAAT TERHUBUNG) ================= */}
+        {callState.isVideo && callState.status === 'connected' && !callState.minimized && (
+          <div className="fixed bottom-8 left-0 right-0 flex justify-center items-center gap-2 md:gap-5 z-[9999] px-2">
+            
+            <button onClick={() => setCallState(prev => ({...prev, minimized: true}))} className="p-3.5 bg-gray-900/60 backdrop-blur-md hover:bg-gray-800/80 rounded-full text-white transition-all shadow-lg border border-white/10 shrink-0">
+              <Icons.Chat className="w-5 h-5" />
+            </button>
+
+            <button onClick={toggleMute} className={`p-4 backdrop-blur-md rounded-full transition-all shadow-lg border border-white/10 shrink-0 ${isMuted ? 'bg-red-500/80 text-white' : 'bg-gray-900/60 text-white hover:bg-gray-800/80'}`}>
+              {isMuted ? <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg> : <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>}
+            </button>
+
+            <button onClick={handleHangupCall} className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] transition-transform hover:scale-105 border border-red-400 shrink-0">
+              <Icons.Plus className="w-8 h-8 rotate-45" />
+            </button>
+
+            <button onClick={toggleVideo} className={`p-4 backdrop-blur-md rounded-full transition-all shadow-lg border border-white/10 shrink-0 ${isVideoOff ? 'bg-red-500/80 text-white' : 'bg-gray-900/60 text-white hover:bg-gray-800/80'}`}>
+              {isVideoOff ? <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> : <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>}
+            </button>
+
+            <button onClick={flipCamera} className="p-3.5 backdrop-blur-md rounded-full transition-all shadow-lg border border-white/10 bg-gray-900/60 text-white hover:bg-gray-800/80 shrink-0">
+              <Icons.RefreshCw className="w-5 h-5" />
+            </button>
+
+          </div>
+        )}
+
+        {/* ================= VIDEO KITA SENDIRI (PICTURE-IN-PICTURE) ================= */}
+        {callState.isVideo && !callState.minimized && (
+          <div
+            className={`fixed overflow-hidden shadow-2xl transition-all bg-[#050C09]
+              ${callState.status === 'connected'
+                 ? 'w-[110px] h-[160px] rounded-2xl border-2 border-white/30 z-[9999]' 
+                 : 'w-0 h-0 opacity-0 pointer-events-none' 
+              }`}
+            style={callState.status === 'connected' ? { right: position.x, top: position.y } : {}}
+            onTouchMove={handleTouchMove} onMouseDown={onMouseDown} onMouseUp={onMouseUp}
+          >
+            {/* Foto profil muncul DI ATAS video saat dimatikan, tag videonya tidak dihapus */}
+            <div className={`w-full h-full flex flex-col items-center justify-center absolute inset-0 z-10 bg-[#050C09] transition-opacity duration-300 ${isVideoOff ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <Avatar url={myProfile?.avatar_url} size={callState.status === 'connected' ? 'w-12 h-12' : 'w-0 h-0'} className="shadow-lg" />
+            </div>
+            
+            <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover scale-x-[-1] absolute inset-0 z-0 ${networkStatus === 'bad' ? 'blur-md' : ''}`} />
+
+            {networkStatus === 'bad' && callState.status === 'connected' && (
+              <div className="absolute top-2 left-2 bg-red-500/90 text-[9px] font-bold tracking-wider text-white px-1.5 py-0.5 rounded z-20">TIDAK STABIL</div>
+            )}
+          </div>
+        )}
+      </>
+    )}
+{/* ================= BANNER TELEPON MINIMIZE (DI ATAS LAYAR) ================= */}
+      {callState.status !== 'idle' && callState.minimized && (
+        <div 
+          onClick={() => setCallState(prev => ({...prev, minimized: false}))}
+          className="fixed top-0 inset-x-0 h-[56px] bg-gradient-to-r from-[#0C8F5B] to-[#096642] dark:from-[#1C3526] dark:to-[#0A140F] z-[9999] flex items-center justify-between px-4 cursor-pointer shadow-lg border-b border-white/10 animate-in slide-in-from-top-full duration-300"
+        >
+          <div className="flex items-center gap-3 overflow-hidden">
+            <Avatar url={callState.contact?.avatar_url} name={callState.contact?.contact_username} size="w-9 h-9" className="shadow-sm border border-white/20" />
+            <div className="flex flex-col">
+              <span className="text-white text-sm font-bold truncate tracking-tight">
+                {callState.contact?.contact_username || 'Panggilan Aktif'}
+              </span>
+              <span className="text-white/90 text-[10px] font-bold flex items-center gap-1.5 tracking-wider">
+                {callState.status === 'connected' ? (
+                  <>
+                    <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(248,113,113,0.8)]"></div>
+                    {formatDuration(callDuration)}
+                  </>
+                ) : (
+                  <span className="animate-pulse">Memutuskan...</span>
+                )}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 shrink-0">
+             {/* Tombol Mute Cepat */}
+             <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className={`p-2 rounded-full transition-colors ${isMuted ? 'bg-white/20 text-red-300' : 'text-white hover:bg-white/10'}`}>
+                {isMuted ? (
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                ) : (
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                )}
+             </button>
+             {/* Tombol Tutup Telepon Cepat */}
+             <button onClick={(e) => { e.stopPropagation(); handleHangupCall(); }} className="p-2 bg-red-500 hover:bg-red-600 rounded-full text-white shadow-md transition-transform active:scale-95 border border-red-400">
+                <Icons.Plus className="w-5 h-5 rotate-45" />
+             </button>
+          </div>
+        </div>
+      )}
+      {/* ================= CONTAINER UTAMA APLIKASI (BERGESER OTOMATIS) ================= */}
+      {/* class inset-0 diganti menjadi inset-x-0 bottom-0, lalu top-nya diatur dinamis */}
+      <div translate="no" className={`flex fixed inset-x-0 bottom-0 w-full font-sans overflow-hidden bg-transparent ${colors.text} transition-all duration-300 selection:bg-[#78C951] selection:text-white ${callState.status !== 'idle' && callState.minimized ? 'top-[56px]' : 'top-0'}`}>
         <SpatialBackground themeName={themeName} />
 
         {/* Notifikasi Dalam Aplikasi */}
@@ -1156,52 +1522,68 @@ function MainApp({ session, myProfile, setMyProfile }) {
    />
 )}
             
-            {activeMenu === 'tasks' && (
+            {activeMenu === 'calls' && (
                <div className={`p-6 min-h-full animate-in slide-in-from-right-4 bg-transparent`}>
-                  <div className={`rounded-[2rem] p-8 text-white shadow-xl mb-8 flex items-center justify-between relative overflow-hidden ${colors.primary}`}>
-                     <div className="absolute top-[-50%] right-[-10%] w-[200px] h-[200px] bg-white/10 rounded-full blur-2xl"></div>
-                     <div className="relative z-10">
-                        <p className="text-sm font-bold opacity-80 mb-1 uppercase tracking-wider">Total {t.points}</p>
-                        <h2 className="text-5xl font-black">{myProfile.points || 0}</h2>
-                     </div>
-                     <Icons.StarSolid className="w-20 h-20 opacity-20 relative z-10 drop-shadow-lg" />
-                  </div>
-                  
-                  <h3 className="font-bold text-lg mb-4 tracking-tight">Protokol Harian</h3>
-                  
-                  <div className="space-y-4 pb-10">
-                    <div className={`p-5 rounded-[1.5rem] border ${colors.border} ${colors.panel} shadow-sm flex items-center justify-between gap-4 transition-all hover:border-[#78C951]/50`}>
-                       <div className="flex-1">
-                          <h4 className="font-bold text-sm mb-1">{t.taskChat}</h4>
-                          <p className={`text-xs ${colors.textMuted} mb-3 font-medium`}>Progress: {taskData.chatProgress.length}/5</p>
-                          <div className="w-full h-2 bg-gray-200 dark:bg-[#1C3526] rounded-full overflow-hidden"><div className={`h-full ${colors.primary}`} style={{ width: `${Math.min((taskData.chatProgress.length/5)*100, 100)}%` }}></div></div>
-                       </div>
-                       <button onClick={() => claimTask('claimedChat')} disabled={taskData.chatProgress.length < 5 || taskData.claimedChat} className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${taskData.claimedChat ? 'bg-gray-100 dark:bg-white/5 text-gray-400' : taskData.chatProgress.length >= 5 ? colors.primary + ' hover:scale-105' : 'bg-gray-100 dark:bg-[#1C3526] text-gray-400'}`}>
-                         {taskData.claimedChat ? t.claimed : t.claim}
-                       </button>
-                    </div>
+                  <h3 className="font-bold text-xl mb-6 tracking-tight">Riwayat Panggilan</h3>
+                  <div className="space-y-3 pb-10">
+                    {callLogs.filter(log => !hiddenCallLogs.includes(log.id)).length === 0 ? (
+                       <p className={`text-center text-sm ${colors.textMuted} mt-10 font-medium`}>Belum ada riwayat panggilan.</p>
+                    ) : (
+                      callLogs.filter(log => !hiddenCallLogs.includes(log.id)).map(log => (
+                        <div key={log.id} className={`p-4 rounded-[1.5rem] border ${colors.border} ${colors.panel} shadow-sm flex items-center justify-between gap-2 transition-all hover:border-[#78C951]/50`}>
+                           
+                           {/* ================= DETAIL LOG PANGGILAN ================= */}
+                           <div className="flex items-center justify-between flex-1 overflow-hidden pr-2">
+                              
+                              {/* Sisi Kiri (Penelpon) */}
+                              <div className="flex flex-col items-center gap-1 shrink-0 w-[60px]">
+                                 <Avatar url={log.isCaller ? myProfile.avatar_url : log.avatar_url} name={log.isCaller ? myProfile.username : log.contact_username} size="w-10 h-10" />
+                                 <span className={`text-[9px] font-bold truncate w-full text-center ${log.isCaller ? 'text-[#0C8F5B] dark:text-[#78C951]' : colors.text}`}>
+                                   {log.isCaller ? 'Anda' : log.contact_username}
+                                 </span>
+                              </div>
 
-                    <div className={`p-5 rounded-[1.5rem] border ${colors.border} ${colors.panel} shadow-sm flex items-center justify-between gap-4 transition-all hover:border-[#78C951]/50`}>
-                       <div className="flex-1">
-                          <h4 className="font-bold text-sm mb-1">{t.taskOnline}</h4>
-                          <p className={`text-xs ${colors.textMuted} mb-3 font-medium`}>Progress: {taskData.onlineMinutes}/5 mnt</p>
-                          <div className="w-full h-2 bg-gray-200 dark:bg-[#1C3526] rounded-full overflow-hidden"><div className={`h-full ${colors.primary}`} style={{ width: `${Math.min((taskData.onlineMinutes/5)*100, 100)}%` }}></div></div>
-                       </div>
-                       <button onClick={() => claimTask('claimedOnline')} disabled={taskData.onlineMinutes < 5 || taskData.claimedOnline} className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${taskData.claimedOnline ? 'bg-gray-100 dark:bg-white/5 text-gray-400' : taskData.onlineMinutes >= 5 ? colors.primary + ' hover:scale-105' : 'bg-gray-100 dark:bg-[#1C3526] text-gray-400'}`}>
-                         {taskData.claimedOnline ? t.claimed : t.claim}
-                       </button>
-                    </div>
+                              {/* Sisi Tengah (Arah Telepon & Durasi) */}
+                              <div className="flex flex-col items-center justify-center flex-1 px-1">
+                                 {log.isCaller ? (
+                                    <div className="flex flex-col items-center text-green-500">
+                                      <Icons.ArrowLeft className="w-5 h-5 rotate-[135deg] mb-1 drop-shadow-sm" />
+                                      <span className="text-[8px] font-bold uppercase tracking-widest leading-none">Panggilan Keluar</span>
+                                    </div>
+                                 ) : (
+                                    <div className="flex flex-col items-center text-blue-500">
+                                      <Icons.ArrowLeft className="w-5 h-5 -rotate-45 mb-1 drop-shadow-sm" />
+                                      <span className="text-[8px] font-bold uppercase tracking-widest leading-none">Panggilan Masuk</span>
+                                    </div>
+                                 )}
+                                 <span className={`text-[9px] font-bold ${colors.textMuted} whitespace-nowrap mt-1`}>
+                                    {new Date(log.date).toLocaleDateString('id-ID')} • {formatDuration(log.duration)}
+                                 </span>
+                              </div>
 
-                    <div className={`p-5 rounded-[1.5rem] border ${colors.border} ${colors.panel} shadow-sm flex items-center justify-between gap-4 transition-all hover:border-[#78C951]/50`}>
-                       <div className="flex-1">
-                          <h4 className="font-bold text-sm mb-1">{t.taskShare}</h4>
-                          <p className={`text-xs ${colors.textMuted} mb-3 font-medium`}>Progress: {taskData.shareCount}/5</p>
-                          <div className="w-full h-2 bg-gray-200 dark:bg-[#1C3526] rounded-full overflow-hidden"><div className={`h-full ${colors.primary}`} style={{ width: `${Math.min((taskData.shareCount/5)*100, 100)}%` }}></div></div>
-                       </div>
-                       <button onClick={() => claimTask('claimedShare')} disabled={taskData.shareCount < 5 || taskData.claimedShare} className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${taskData.claimedShare ? 'bg-gray-100 dark:bg-white/5 text-gray-400' : taskData.shareCount >= 5 ? colors.primary + ' hover:scale-105' : 'bg-gray-100 dark:bg-[#1C3526] text-gray-400'}`}>
-                         {taskData.claimedShare ? t.claimed : t.claim}
-                       </button>
-                    </div>
+                              {/* Sisi Kanan (Penerima) */}
+                              <div className="flex flex-col items-center gap-1 shrink-0 w-[60px]">
+                                 <Avatar url={log.isCaller ? log.avatar_url : myProfile.avatar_url} name={log.isCaller ? log.contact_username : myProfile.username} size="w-10 h-10" />
+                                 <span className={`text-[9px] font-bold truncate w-full text-center ${!log.isCaller ? 'text-[#0C8F5B] dark:text-[#78C951]' : colors.text}`}>
+                                   {log.isCaller ? log.contact_username : 'Anda'}
+                                 </span>
+                              </div>
+
+                           </div>
+                           {/* ======================================================= */}
+
+                           <div className="flex flex-col md:flex-row items-center gap-2 shrink-0 border-l border-white/10 pl-3">
+                              <div className="p-2 rounded-full bg-black/5 dark:bg-white/5">
+                                 {log.isVideo ? <Icons.Smartphone className="w-4 h-4 text-blue-500" /> : <Icons.Phone className="w-4 h-4 text-[#0C8F5B] dark:text-[#78C951]" />}
+                              </div>
+                              <button onClick={() => hideCallLog(log.id)} className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors">
+                                 <Icons.Trash className="w-4 h-4" />
+                              </button>
+                           </div>
+
+                        </div>
+                      ))
+                    )}
                   </div>
                </div>
             )}
@@ -1219,57 +1601,95 @@ function MainApp({ session, myProfile, setMyProfile }) {
 )}
 
             {activeMenu === 'about' && (
-               <div className={`p-6 bg-transparent min-h-full animate-in slide-in-from-right-4`}>
-                   <div className="flex items-center gap-3 mb-6">
+               <div className={`p-6 bg-transparent min-h-full animate-in slide-in-from-right-4 relative overflow-hidden`}>
+                   
+                   {/* Latar Belakang Dekoratif Tambahan (Cahaya Spatial) */}
+                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#0C8F5B]/10 dark:bg-[#78C951]/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
+                   <div className="absolute bottom-20 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-[70px] -z-10 pointer-events-none"></div>
+
+                   <div className="flex items-center gap-3 mb-8 relative z-10">
                      <button onClick={() => setActiveMenu('chat')} className={`p-2.5 ${colors.panel} border ${colors.border} rounded-xl shadow-sm ${colors.hoverBg} transition-all`}><Icons.ArrowLeft /></button>
-                     <h2 className="text-xl font-bold">{t.about}</h2>
+                     <h2 className="text-xl font-bold tracking-tight">{t.about}</h2>
                    </div>
                    
-                   <div className="flex flex-col items-center justify-center mt-6 mb-8 text-center">
-                     <div className="w-24 h-24 bg-white dark:bg-gradient-to-br dark:from-[#13281E] dark:to-[#0A1710] border border-gray-100 dark:border-white/10 rounded-3xl flex items-center justify-center shadow-xl mb-4">
-
-                       <img src={logoImg} alt="NexChat Logo" className="w-12 h-12" />
-
-
+                   <div className="flex flex-col items-center justify-center mt-2 mb-8 text-center relative z-10">
+                     <div className="relative">
+                       {/* Efek Cahaya di Belakang Logo */}
+                       <div className="absolute inset-0 bg-gradient-to-tr from-[#0C8F5B] to-[#78C951] blur-xl opacity-40 rounded-full animate-pulse"></div>
+                       <div className="w-28 h-28 bg-white dark:bg-gradient-to-br dark:from-[#13281E] dark:to-[#0A1710] border border-gray-100 dark:border-white/10 rounded-[2rem] flex items-center justify-center shadow-2xl mb-5 relative z-10">
+                         <img src={logoImg} alt="NexChat Logo" className="w-14 h-14 drop-shadow-lg" />
+                       </div>
                      </div>
-                     <h2 className="text-2xl font-black tracking-tight mb-1">NexChat Spatial</h2>
-                     <p className={`font-bold text-xs ${colors.textMuted} bg-black/5 dark:bg-white/5 border ${colors.border} px-3 py-1 rounded-full inline-block`}>Versi 3.0 (Update Terbaru)</p>
+                     <h2 className="text-3xl font-black tracking-tight mb-2 bg-gradient-to-r from-[#0C8F5B] to-[#096642] dark:from-[#78C951] dark:to-[#8ce362] bg-clip-text text-transparent">
+                       NexChat Spatial
+                     </h2>
+                     <div className="flex items-center gap-2">
+                       <span className={`font-black text-[10px] text-white bg-gradient-to-r from-[#0C8F5B] to-[#78C951] px-3 py-1.5 rounded-full shadow-md tracking-widest uppercase`}>
+                         Versi 3.1
+                       </span>
+                       <span className={`font-bold text-[10px] ${colors.textMuted} bg-black/5 dark:bg-white/5 border ${colors.border} px-3 py-1.5 rounded-full tracking-widest uppercase`}>
+                         Terbaru
+                       </span>
+                     </div>
                    </div>
 
-                   {/* Kotak Info Pembaruan */}
-                   <div className={`${colors.panel} border ${colors.border} rounded-2xl p-5 mb-6 shadow-sm`}>
-                     <h3 className="font-bold text-sm text-[#0C8F5B] dark:text-[#78C951] mb-2 uppercase tracking-widest flex items-center gap-2">
-                       <Icons.Star className="w-4 h-4" /> Info Pembaruan
-                     </h3>
-                     <ul className={`text-sm ${colors.textMuted} space-y-2 font-medium list-disc list-inside`}>
-                       <li>Peningkatan UI/UX Spatial & Glassmorphism.</li>
-                       <li>Penambahan fitur Multi-User Typing di Grup.</li>
-                       <li>Notifikasi pesan belum dibaca (Unread Badges).</li>
-                       <li>Optimalisasi pengiriman media dan sistem Anti-Bot.</li>
-                     </ul>
+                   {/* Kotak Info Pembaruan (Desain Baru dengan Ikon) */}
+                   <div className={`${colors.panel} border ${colors.border} rounded-[2rem] p-6 mb-8 shadow-lg relative z-10`}>
+                     <div className="flex items-center justify-between mb-5">
+                       <h3 className="font-black text-sm text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                         <Icons.StarSolid className="w-5 h-5 text-yellow-400 drop-shadow-sm" /> Sorotan Update
+                       </h3>
+                       <span className="text-[10px] font-bold text-[#0C8F5B] dark:text-[#78C951] bg-[#0C8F5B]/10 dark:bg-[#78C951]/10 px-2 py-1 rounded-md border border-[#0C8F5B]/20 dark:border-[#78C951]/20">
+                         v3.1
+                       </span>
+                     </div>
+                     
+                     <div className="space-y-4">
+                       <div className="flex items-start gap-3">
+                         <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 shrink-0 mt-0.5 border border-blue-500/20"><Icons.Smartphone className="w-4 h-4" /></div>
+                         <div>
+                           <p className="text-sm font-bold mb-0.5">Video & Voice Call</p>
+                           <p className={`text-[11px] ${colors.textMuted} font-medium leading-relaxed`}>Panggilan real-time dengan fitur Picture-in-Picture (PiP), Flip Camera, & Notifikasi.</p>
+                         </div>
+                       </div>
+                       <div className="flex items-start gap-3">
+                         <div className="p-2 rounded-xl bg-[#0C8F5B]/10 dark:bg-[#78C951]/10 text-[#0C8F5B] dark:text-[#78C951] shrink-0 mt-0.5 border border-[#0C8F5B]/20 dark:border-[#78C951]/20"><Icons.Mic className="w-4 h-4" /></div>
+                         <div>
+                           <p className="text-sm font-bold mb-0.5">Voice Note (VN)</p>
+                           <p className={`text-[11px] ${colors.textMuted} font-medium leading-relaxed`}>Kirim pesan suara cepat dengan UI pemutar audio pintar ala WhatsApp.</p>
+                         </div>
+                       </div>
+                       <div className="flex items-start gap-3">
+                         <div className="p-2 rounded-xl bg-red-500/10 text-red-500 shrink-0 mt-0.5 border border-red-500/20"><Icons.Check className="w-4 h-4" /></div>
+                         <div>
+                           <p className="text-sm font-bold mb-0.5">Perbaikan Sistem Mayor</p>
+                           <p className={`text-[11px] ${colors.textMuted} font-medium leading-relaxed`}>Optimalisasi WebRTC, perbaikan UI layar transparan, & stabilitas History Call.</p>
+                         </div>
+                       </div>
+                     </div>
                    </div>
 
                    {/* Tombol Akses (Web & APK) */}
-                   <div className="flex gap-3 mb-10">
-                      <button onClick={() => window.open('https://nexchat-eight.vercel.app/', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-[#0C8F5B] text-[#0C8F5B] dark:border-[#78C951] dark:text-[#78C951] hover:bg-[#0C8F5B]/10 dark:hover:bg-[#78C951]/10 transition-all text-center`}>
+                   <div className="flex gap-3 mb-12 relative z-10">
+                      <button onClick={() => window.open('https://nexchat.satriamika.my.id', '_blank')} className={`flex-1 py-3.5 px-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border-2 border-[#0C8F5B] text-[#0C8F5B] dark:border-[#78C951] dark:text-[#78C951] hover:bg-[#0C8F5B]/10 dark:hover:bg-[#78C951]/10 transition-all text-center shadow-sm`}>
                         <Icons.Globe className="w-4 h-4" /> Versi Web
                       </button>
-                      <button onClick={() => window.open('https://github.com/satriamikaanjay/nexchat/releases/download/v1.1/NexChat.apk', '_blank')} className={`flex-1 py-3 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F] shadow-lg hover:opacity-90 transition-all text-center`}>
+                      <button onClick={() => window.open('https://github.com/satriamikaanjay/nexchat/releases/download/v1.1/NexChat.apk', '_blank')} className={`flex-1 py-3.5 px-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-[#0C8F5B] to-[#096642] dark:from-[#78C951] dark:to-[#68b345] text-white dark:text-[#0A140F] shadow-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all text-center`}>
                         <Icons.Smartphone className="w-4 h-4" /> Versi APK
                       </button>
                    </div>
 
                    {/* Info Developer & Sosial Media */}
-                   <div className="text-center pb-10">
-                     <p className={`text-[10px] font-bold uppercase tracking-widest ${colors.textMuted} mb-3`}>Dikembangkan Oleh</p>
-                     <h4 className="font-black text-lg mb-4">Satria Mika Narendra</h4>
+                   <div className="text-center pb-12 relative z-10">
+                     <p className={`text-[10px] font-black uppercase tracking-widest ${colors.textMuted} mb-3`}>Dikembangkan Oleh</p>
+                     <h4 className="font-black text-xl mb-6">Satria Mika Narendra</h4>
                      
                      <div className="flex justify-center">
                         <button 
                           onClick={() => window.open('https://www.satriamika.my.id/', '_blank')} 
-                          className={`px-6 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-3 ${colors.inputBg} border ${colors.border} hover:border-[#0C8F5B] hover:text-[#0C8F5B] dark:hover:border-[#78C951] dark:hover:text-[#78C951] transition-all shadow-sm group`}
+                          className={`px-8 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 ${colors.panel} border ${colors.border} hover:border-[#0C8F5B] hover:text-[#0C8F5B] dark:hover:border-[#78C951] dark:hover:text-[#78C951] transition-all shadow-md group hover:-translate-y-1`}
                         >
-                          <Icons.Briefcase className="w-5 h-5 transition-transform group-hover:-translate-y-1" />
+                          <Icons.Briefcase className="w-5 h-5 transition-transform group-hover:rotate-12" />
                           Lihat Web Portofolio
                         </button>
                      </div>
@@ -1306,9 +1726,9 @@ function MainApp({ session, myProfile, setMyProfile }) {
                     <span className="text-[10px] font-bold">{t.groups}</span>
                 </button>
 
-                <button onClick={() => setActiveMenu('tasks')} className={`flex flex-col items-center justify-center w-20 h-full transition-all ${activeMenu === 'tasks' ? 'text-[#0C8F5B] dark:text-[#78C951]' : colors.textMuted}`}>
-                    <Icons.Target className="mb-1" />
-                    <span className="text-[10px] font-bold">{t.tasks}</span>
+                <button onClick={() => setActiveMenu('calls')} className={`flex flex-col items-center justify-center w-20 h-full transition-all ${activeMenu === 'calls' ? 'text-[#0C8F5B] dark:text-[#78C951]' : colors.textMuted}`}>
+                    <Icons.Phone className="mb-1" />
+                    <span className="text-[10px] font-bold">Panggilan</span>
                 </button>
             </div>
           )}
@@ -1372,6 +1792,10 @@ function MainApp({ session, myProfile, setMyProfile }) {
               blockedIds={blockedIds} openConfirm={openConfirm} localDeletedMsgs={localDeletedMsgs} setLocalDeletedMsgs={setLocalDeletedMsgs}
               taskData={taskData} setTaskData={setTaskData} 
               groups={groups} setGroups={setGroups} 
+              
+              // ---> TAMBAHKAN 2 BARIS INI: <---
+              callState={callState} 
+              setCallState={setCallState} 
             />
           )}
         </div>
@@ -1391,6 +1815,11 @@ function MainApp({ session, myProfile, setMyProfile }) {
             </div>
           </div>
         </Modal>
+
+        {/* ================= LAYAR TELEPON (VOICE CALL) ================= */}
+        
+        {/* ================= LAYAR TELEPON FULL (VOICE & VIDEO CALL) ================= */}
+        
 
         <DeleteAccountModal 
   isOpen={isDeleteModalOpen} 
@@ -1803,8 +2232,99 @@ const getFirstUrl = (text) => {
   return match ? match[0] : null;
 };
 
+// ================= KOMPONEN VOICE NOTE CUSTOM (ALA WA) =================
+const VoiceNotePlayer = ({ url, avatarUrl, isMe }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef(null);
+
+  const togglePlay = (e) => {
+    e.stopPropagation(); // Mencegah double click terpicu saat menekan play
+    if (isPlaying) audioRef.current.pause();
+    else audioRef.current.play();
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    const current = audioRef.current.currentTime;
+    const total = audioRef.current.duration;
+    setProgress((current / total) * 100);
+  };
+
+  const handleSeek = (e) => {
+    e.stopPropagation(); // Mencegah double click terpicu saat menggeser durasi
+    const value = e.target.value;
+    const newTime = (value / 100) * duration;
+    audioRef.current.currentTime = newTime;
+    setProgress(value);
+  };
+
+  const formatTime = (time) => {
+    if (isNaN(time) || time === Infinity) return "0:00";
+    const m = Math.floor(time / 60);
+    const s = Math.floor(time % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  return (
+    <div className="flex items-center gap-3 pt-1 pb-1 min-w-[240px] md:min-w-[280px]">
+      {/* 1. Foto Profil dengan Badge Mic */}
+      <div className="relative shrink-0">
+        <Avatar url={avatarUrl} name="VN" size="w-11 h-11" className="border border-white/20 shadow-sm" />
+        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center shadow-sm ${isMe ? 'bg-white text-[#0C8F5B]' : 'bg-[#0C8F5B] text-white'}`}>
+          <Icons.Mic className="w-2.5 h-2.5" />
+        </div>
+      </div>
+      
+      {/* 2. Tombol Play/Pause */}
+      <button onClick={togglePlay} className={`w-9 h-9 flex items-center justify-center rounded-full shrink-0 transition-transform active:scale-95 shadow-sm ${isMe ? 'bg-white text-[#0C8F5B] dark:text-[#096642]' : 'bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F]'}`}>
+        {isPlaying ? (
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        ) : (
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        )}
+      </button>
+
+      {/* 3. Garis Progress (Mirip Gelombang Suara) */}
+      <div className="flex-1 flex flex-col justify-center gap-1">
+        <div className="relative flex items-center w-full h-4" onClick={(e) => e.stopPropagation()}>
+          {/* Slider Transparan untuk interaksi */}
+          <input 
+            type="range" min="0" max="100" value={progress || 0} onChange={handleSeek}
+            className="absolute w-full h-2 rounded-full appearance-none cursor-pointer z-10 opacity-0" 
+          />
+          {/* UI Track Belakang */}
+          <div className={`w-full h-1.5 rounded-full overflow-hidden shadow-inner ${isMe ? 'bg-black/20' : 'bg-gray-200 dark:bg-[#1C3526]'}`}>
+            {/* UI Track Progress (Berjalan) */}
+            <div className={`h-full transition-all duration-100 ${isMe ? 'bg-white' : 'bg-[#0C8F5B] dark:bg-[#78C951]'}`} style={{ width: `${progress}%` }}></div>
+          </div>
+          {/* UI Bulatan Indikator (Thumb) */}
+          <div className={`absolute h-3 w-3 rounded-full pointer-events-none transition-all duration-100 shadow-md ${isMe ? 'bg-white' : 'bg-[#0C8F5B] dark:bg-[#78C951]'}`} style={{ left: `calc(${progress}% - 6px)` }}></div>
+        </div>
+
+        {/* 4. Durasi */}
+        <div className="flex justify-between items-center px-1">
+          <span className={`text-[10px] font-bold ${isMe ? 'text-white/80' : 'text-gray-500 dark:text-[#8AB5A0]'}`}>
+            {formatTime(isPlaying ? audioRef.current?.currentTime : duration)}
+          </span>
+        </div>
+      </div>
+      
+      {/* Mesin Audio (Tersembunyi) */}
+      <audio 
+        ref={audioRef} src={url} 
+        onTimeUpdate={handleTimeUpdate} 
+        onLoadedMetadata={() => setDuration(audioRef.current.duration)} 
+        onEnded={() => { setIsPlaying(false); setProgress(0); audioRef.current.currentTime = 0; }} 
+        className="hidden" 
+      />
+    </div>
+  );
+};
+
 // ================= KOMPONEN RUANG OBROLAN MODERN =================
-function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, setActiveChat, contacts, setContacts, globalMessages, setGlobalMessages, onlineUsers, blockedIds, openConfirm, localDeletedMsgs, setLocalDeletedMsgs, taskData, setTaskData, groups, setGroups }) {
+function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, setActiveChat, contacts, setContacts, globalMessages, setGlobalMessages, onlineUsers, blockedIds, openConfirm, localDeletedMsgs, setLocalDeletedMsgs, taskData, setTaskData, groups, setGroups, callState, setCallState }) {
   const [inputMessage, setInputMessage] = useState('')
   const [typingUserId, setTypingUserId] = useState(null)
   const [pendingMessages, setPendingMessages] = useState([])
@@ -1813,6 +2333,92 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
   const [previewIndex, setPreviewIndex] = useState(0) // Untuk melacak foto ke-berapa yang dilihat
   const previewTouchStartX = useRef(0) // Untuk mendeteksi arah gesekan (swipe) di layar HP
   const [isUploading, setIsUploading] = useState(false)
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const isCancelledRef = useRef(false);
+  const formatDuration = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      isCancelledRef.current = false;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        if (!isCancelledRef.current) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          handleSendVoiceNote(audioBlob);
+        }
+        stream.getTracks().forEach(track => track.stop()); // Matikan mic setelah selesai
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+    } catch (err) {
+      console.error("Gagal akses mikrofon:", err);
+      showToast("Izin mikrofon ditolak!");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      isCancelledRef.current = true;
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const handleSendVoiceNote = async (audioBlob) => {
+    setIsUploading(true);
+    const fileName = `vn_${Date.now()}_${Math.random().toString(36).substring(7)}.webm`;
+    const filePath = `${session.user.id}/${fileName}`;
+
+    const { error } = await supabase.storage.from('chat_media').upload(filePath, audioBlob);
+    if (!error) {
+      const { data } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      const tempId = `temp-${Date.now()}`;
+      const payload = { 
+        sender_id: String(myProfile.chat_id), 
+        receiver_id: String(activeChat.contact_id), 
+        content: '', 
+        is_read: false, 
+        reply_to_id: replyingTo?.id || null, 
+        media_files: [{ url: data.publicUrl, type: 'audio', name: fileName }], 
+        created_at: new Date().toISOString() 
+      };
+
+      setGlobalMessages(prev => [...prev, { ...payload, id: tempId }]);
+      await supabase.from('messages').insert([payload]);
+      setGlobalMessages(prev => prev.filter(m => m.id !== tempId));
+    } else {
+      showToast("Gagal mengirim Voice Note.");
+    }
+    setIsUploading(false);
+    setReplyingTo(null);
+  };
   const [showContactInfo, setShowContactInfo] = useState(false)
   const [visibleCount, setVisibleCount] = useState(50);
 
@@ -1876,6 +2482,7 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
   const chatContainerRef = useRef(null); 
   const [isAtBottom, setIsAtBottom] = useState(true); 
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false)
+  const [isCallMenuOpen, setIsCallMenuOpen] = useState(false)
   
   const [replyingTo, setReplyingTo] = useState(null)
   const [isReplyExpanded, setIsReplyExpanded] = useState(false);
@@ -2421,6 +3028,12 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                        {file.type === 'sticker' && <img src={file.url} className="object-contain w-28 h-28 drop-shadow-xl" alt="Sticker Preview" />}
                        
                        {file.type === 'document' && <div className="flex flex-col items-center justify-center h-full text-[10px] opacity-70 p-2"><Icons.File className="w-8 h-8 mb-2 pointer-events-none" /> <span className="truncate w-full mt-1 pointer-events-none">{file.name}</span></div>}
+                       {file.type === 'audio' && (
+  <div className="flex flex-col items-center justify-center h-full text-white/90">
+    <Icons.Mic className="w-8 h-8 mb-2 pointer-events-none drop-shadow-md" />
+    <span className="text-xs font-bold pointer-events-none tracking-widest uppercase">Voice Note</span>
+  </div>
+)}
                      </div>
                    ))}
                  </div>
@@ -2498,9 +3111,9 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                    {contextMsg.content && (
                      <button onClick={() => { handleCopyText(contextMsg.content); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>{t.copy} <Icons.Copy /></button>
                    )}
-                   {contextMsg.sender_id === myProfile.chat_id && (
-                     <button onClick={() => { setEditingMsg(contextMsg); setInputMessage(contextMsg.content); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>{t.edit} <Icons.Edit /></button>
-                   )}
+                   {contextMsg.sender_id === myProfile.chat_id && !contextMsg.media_files?.some(f => f.type === 'audio' || f.type === 'sticker') && (
+  <button onClick={() => { setEditingMsg(contextMsg); setInputMessage(contextMsg.content); setContextMsg(null); }} className={`px-5 py-4 font-bold text-left ${colors.hoverBg} flex justify-between items-center transition-colors text-sm border-b ${colors.border}`}>{t.edit} <Icons.Edit /></button>
+)}
                  </>
                )}
 
@@ -2529,11 +3142,63 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
 </p>
             </div>
           </div>
-          <div className="flex items-center shrink-0">
+          <div className="flex items-center shrink-0 gap-2">
+            
+            {/* ================= DROPDOWN PANGGILAN ================= */}
+            {activeChat.type !== 'group' && (
+              <div className="relative z-[9999]">
+                <button 
+                  onClick={() => { setIsCallMenuOpen(!isCallMenuOpen); setIsHeaderMenuOpen(false); }} 
+                  className={`p-3 rounded-xl border ${colors.border} ${colors.hoverBg} transition-all text-[#0C8F5B] dark:text-[#78C951]`}
+                >
+                  <Icons.Phone />
+                </button>
+                
+                {isCallMenuOpen && (
+                  <div className={`absolute right-0 mt-3 w-48 ${colors.panel} border ${colors.border} rounded-[1.5rem] shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
+                    
+                    {/* Tombol Voice Call */}
+                    <button 
+                      onClick={() => { 
+                        setIsCallMenuOpen(false); 
+                        setCallState({ status: 'calling', contact: activeChat, isCaller: true, isVideo: false }); 
+                      }} 
+                      className={`w-full text-left px-5 py-4 text-sm font-bold flex items-center gap-3 ${colors.hoverBg} transition-colors`}
+                    >
+                      <Icons.Phone className="w-4 h-4" /> Telepon Suara
+                    </button>
+                    
+                    <div className={`h-px w-full ${colors.border}`}></div>
+                    
+                    {/* Tombol Video Call */}
+                    <button 
+                      onClick={() => { 
+                        setIsCallMenuOpen(false); 
+                        setCallState({ status: 'calling', contact: activeChat, isCaller: true, isVideo: true }); 
+                      }} 
+                      className={`w-full text-left px-5 py-4 text-sm font-bold flex items-center gap-3 ${colors.hoverBg} transition-colors`}
+                    >
+                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                      </svg>
+                      Video Call
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* ====================================================== */}
+
+            {/* Menu Titik Tiga (More Options) */}
             <div className="relative z-[9999]">
-              <button onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)} className={`p-3 rounded-xl border ${colors.border} ${colors.hoverBg} transition-all ${colors.textMuted}`}><Icons.MoreVertical /></button>
+              <button 
+                onClick={() => { setIsHeaderMenuOpen(!isHeaderMenuOpen); setIsCallMenuOpen(false); }} 
+                className={`p-3 rounded-xl border ${colors.border} ${colors.hoverBg} transition-all ${colors.textMuted}`}
+              >
+                <Icons.MoreVertical />
+              </button>
               {isHeaderMenuOpen && (
-                <div className={`absolute right-0 mt-3 w-56 ${colors.panel} border ${colors.border} rounded-[1.5rem] shadow-2xl z-50 overflow-hidden`}>
+                <div className={`absolute right-0 mt-3 w-56 ${colors.panel} border ${colors.border} rounded-[1.5rem] shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}>
                   <button onClick={handleClearChatLocal} className={`w-full text-left px-5 py-4 text-sm font-bold ${colors.hoverBg} transition-colors`}>{t.clearMe}</button>
                   <button onClick={handleClearChatEveryone} className={`w-full text-left px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors`}>{t.clearAll}</button>
                   <div className={`h-px w-full ${colors.border}`}></div>
@@ -2662,7 +3327,19 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                                   if (file.type === 'sticker') {
   // Tambahkan mb-4 (margin-bottom) agar ada ruang untuk teks waktu di bawahnya
   return <img key={idx} src={file.url} className="object-contain w-36 h-36 md:w-48 md:h-48 drop-shadow-2xl mb-4" alt="Stiker" />
-}
+}if (file.type === 'audio') {
+                                    // Ambil foto profil secara dinamis
+                                    const senderAvatar = isMe ? myProfile.avatar_url : activeChat.avatar_url;
+                                    
+                                    return (
+                                      <VoiceNotePlayer 
+                                        key={idx} 
+                                        url={file.url} 
+                                        avatarUrl={senderAvatar}
+                                        isMe={isMe} 
+                                      />
+                                    )
+                                  }
                                   return (
                                     <div key={idx} className="relative rounded-xl overflow-hidden border border-white/10 bg-black/20 shadow-inner">
                                       {file.type === 'image' && (
@@ -2880,58 +3557,60 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
           <form onSubmit={handleSendMessage} className="flex gap-2 items-end px-1">
             <input type="file" multiple ref={mediaInputRef} onChange={handleSendMedia} className="hidden" />
             
-            {/* KOTAK INPUT TERPADU (Semua Ikon di dalam satu gelembung) */}
-            <div className={`flex-1 ${colors.inputBg} rounded-[1.5rem] min-h-[50px] md:min-h-[56px] flex items-center shadow-inner border ${colors.border} transition-all py-1 px-1.5 md:px-2 focus-within:border-[#0C8F5B] dark:focus-within:border-[#78C951] focus-within:ring-1 focus-within:ring-[#0C8F5B] dark:focus-within:ring-[#78C951]`}>
-              
-              {/* Tombol Pembuat Stiker (Kiri) */}
-              <button 
-                type="button" 
-                onClick={() => setIsStickerMakerOpen(true)} 
-                className={`p-2 rounded-full ${colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 hover:text-current transition-all shrink-0`}
-              >
-                <Icons.Sticker className="w-5 h-5 md:w-6 md:h-6" />
-              </button>
-
-              {/* Tombol Laci Favorit (Kiri) */}
-              <button 
-                type="button" 
-                onClick={() => setShowFavStickers(!showFavStickers)} 
-                className={`p-2 rounded-full ${showFavStickers ? 'text-yellow-500' : colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 transition-all shrink-0`}
-              >
-                <Icons.Star className="w-5 h-5 md:w-6 md:h-6" />
-              </button>
-
-              {/* Area Ketik Pesan */}
-              <textarea 
-                rows={1} value={inputMessage} onChange={handleTyping} 
-                onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
-                placeholder={isUploading ? 'Menyiapkan Transmisi...' : t.typeMsg} 
-                className={`w-full bg-transparent px-2 py-2.5 text-[14px] md:text-[15px] font-medium outline-none resize-none max-h-[120px] overflow-y-auto ${colors.text} placeholder-gray-400 dark:placeholder-[#3D5A4C]`} 
-              />
-              
-              {/* Tombol Kirim Dokumen/File (Kanan Dalam) */}
-              <button 
-                type="button" 
-                disabled={isUploading} 
-                onClick={() => mediaInputRef.current.click()} 
-                className={`p-2 rounded-full ${colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 hover:text-current transition-all shrink-0`}
-              >
-                <Icons.Attach className="w-5 h-5 md:w-6 md:h-6 rotate-[-45deg]" />
-              </button>
-            </div>
+            {/* KOTAK INPUT (Berubah UI saat merekam) */}
+            {isRecording ? (
+              <div className={`flex-1 bg-red-500/10 rounded-[1.5rem] min-h-[50px] md:min-h-[56px] flex items-center justify-between shadow-inner border border-red-500/30 transition-all px-4`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+                  <span className="text-red-500 font-bold tracking-widest text-sm">Merekam... {formatDuration(recordingTime)}</span>
+                </div>
+                <button type="button" onClick={cancelRecording} className="text-xs font-black text-red-500 uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform">
+                  Batal
+                </button>
+              </div>
+            ) : (
+              <div className={`flex-1 ${colors.inputBg} rounded-[1.5rem] min-h-[50px] md:min-h-[56px] flex items-center shadow-inner border ${colors.border} transition-all py-1 px-1.5 md:px-2 focus-within:border-[#0C8F5B] dark:focus-within:border-[#78C951] focus-within:ring-1 focus-within:ring-[#0C8F5B] dark:focus-within:ring-[#78C951]`}>
+                <button type="button" onClick={() => setIsStickerMakerOpen(true)} className={`p-2 rounded-full ${colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 hover:text-current transition-all shrink-0`}>
+                  <Icons.Sticker className="w-5 h-5 md:w-6 md:h-6" />
+                </button>
+                <button type="button" onClick={() => setShowFavStickers(!showFavStickers)} className={`p-2 rounded-full ${showFavStickers ? 'text-yellow-500' : colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 transition-all shrink-0`}>
+                  <Icons.Star className="w-5 h-5 md:w-6 md:h-6" />
+                </button>
+                <textarea 
+                  rows={1} value={inputMessage} onChange={handleTyping} 
+                  onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
+                  placeholder={isUploading ? 'Menyiapkan Transmisi...' : t.typeMsg} 
+                  className={`w-full bg-transparent px-2 py-2.5 text-[14px] md:text-[15px] font-medium outline-none resize-none max-h-[120px] overflow-y-auto ${colors.text} placeholder-gray-400 dark:placeholder-[#3D5A4C]`} 
+                />
+                <button type="button" disabled={isUploading} onClick={() => mediaInputRef.current.click()} className={`p-2 rounded-full ${colors.textMuted} hover:bg-black/5 dark:hover:bg-white/5 hover:text-current transition-all shrink-0`}>
+                  <Icons.Attach className="w-5 h-5 md:w-6 md:h-6 rotate-[-45deg]" />
+                </button>
+              </div>
+            )}
             
-            {/* TOMBOL KIRIM PESAN (Bulat di luar) */}
-            <button 
-              type="submit" 
-              disabled={(!inputMessage.trim() && stagedFiles.length === 0) || isUploading} 
-              className={`w-[50px] h-[50px] md:w-[56px] md:h-[56px] flex items-center justify-center rounded-[1.5rem] ${colors.primary} shrink-0 shadow-lg transition-all ${((!inputMessage.trim() && stagedFiles.length === 0) || isUploading) ? 'opacity-50 grayscale scale-95' : 'hover:scale-105 active:scale-95'}`}
-            >
-              {isUploading 
-                 ? <div className="w-5 h-5 md:w-6 md:h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div> 
-                 : <Icons.Send className="w-5 h-5 md:w-6 md:h-6 ml-1" />
-              }
-            </button>
+            {/* TOMBOL KIRIM (Berubah jadi Mic jika input kosong) */}
+            {(!inputMessage.trim() && stagedFiles.length === 0 && !isRecording) ? (
+              <button 
+                type="button" 
+                onClick={startRecording}
+                className={`w-[50px] h-[50px] md:w-[56px] md:h-[56px] flex items-center justify-center rounded-[1.5rem] bg-[#0C8F5B] dark:bg-[#78C951] text-white dark:text-[#0A140F] shrink-0 shadow-lg hover:scale-105 active:scale-95 transition-all`}
+              >
+                <Icons.Mic className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+            ) : (
+              <button 
+                type="submit" 
+                onClick={(e) => { if (isRecording) { e.preventDefault(); stopRecording(); } }}
+                disabled={(!inputMessage.trim() && stagedFiles.length === 0 && !isRecording) || isUploading} 
+                className={`w-[50px] h-[50px] md:w-[56px] md:h-[56px] flex items-center justify-center rounded-[1.5rem] ${colors.primary} shrink-0 shadow-lg transition-all ${((!inputMessage.trim() && stagedFiles.length === 0 && !isRecording) || isUploading) ? 'opacity-50 grayscale scale-95' : 'hover:scale-105 active:scale-95'}`}
+              >
+                {isUploading 
+                   ? <div className="w-5 h-5 md:w-6 md:h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div> 
+                   : <Icons.Send className="w-5 h-5 md:w-6 md:h-6 ml-1" />
+                }
+              </button>
+            )}
           </form>
         </div>
 
@@ -3120,11 +3799,34 @@ function ChatRoom({ session, myProfile, setMyProfile, colors, t, activeChat, set
                  </div>
                  
                  <div className={`p-6 space-y-4`}>
-                    <button onClick={() => alert("Fitur Telepon belum tersedia!")} className={`w-full p-5 rounded-[1.5rem] flex items-center justify-between font-bold ${colors.hoverBg} border ${colors.border} transition-colors shadow-sm`}>
-                      <span className="tracking-wide">Hubungi</span>
-                      <div className={`text-[#0C8F5B] dark:text-[#78C951] bg-[#0C8F5B]/10 dark:bg-[#78C951]/10 p-2.5 rounded-xl`}><Icons.Chat className="w-5 h-5" /></div>
-                    </button>
                     
+                    {/* --- KOTAK 2 TOMBOL (TELEPON & VIDEO CALL) BERSAMPINGAN --- */}
+                    <div className="flex gap-4 w-full">
+                      {/* Tombol Telepon Suara */}
+                      <button onClick={() => {
+                         setCallState({ status: 'calling', contact: activeChat, isCaller: true, isVideo: false });
+                      }} className={`flex-1 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 font-bold ${colors.hoverBg} border ${colors.border} transition-colors shadow-sm`}>
+                        <div className={`text-[#0C8F5B] dark:text-[#78C951] bg-[#0C8F5B]/10 dark:bg-[#78C951]/10 p-3 rounded-full`}><Icons.Smartphone className="w-6 h-6" /></div>
+                        <span className="text-xs mt-1">Telepon</span>
+                      </button>
+
+                      {/* Tombol Video Call */}
+                      <button onClick={() => {
+                         setCallState({ status: 'calling', contact: activeChat, isCaller: true, isVideo: true });
+                      }} className={`flex-1 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 font-bold ${colors.hoverBg} border ${colors.border} transition-colors shadow-sm`}>
+                        <div className={`text-blue-500 bg-blue-500/10 p-3 rounded-full`}>
+                          {/* GANTI Icons.Video DENGAN SVG INI */}
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                          </svg>
+                        </div>
+                        <span className="text-xs mt-1">Video Call</span>
+                      </button>
+                    </div>
+                    {/* -------------------------------------------------------- */}
+                    
+                    {/* Tombol Hapus Kontak (Tetap seperti aslinya) */}
                     <button onClick={() => openConfirm("Hapus Kontak", `Yakin ingin menghapus ${activeChat.contact_username}? Data obrolan akan hilang permanen.`, async () => {
                        await supabase.from('contacts').delete().eq('contact_id', activeChat.contact_id).eq('user_id', session.user.id);
                        await supabase.from('messages').delete().or(`and(sender_id.eq.${myProfile.chat_id},receiver_id.eq.${activeChat.contact_id}),and(sender_id.eq.${activeChat.contact_id},receiver_id.eq.${myProfile.chat_id})`);
